@@ -1,0 +1,554 @@
+import 'package:flutter/material.dart';
+
+import '../../models/user.dart';
+import '../../models/role_summary.dart';
+import '../../services/api_service.dart';
+import '../../services/roles_service.dart';
+import '../../services/users_service.dart';
+
+class RolesManagementPage extends StatefulWidget {
+  const RolesManagementPage({super.key});
+
+  @override
+  State<RolesManagementPage> createState() => _RolesManagementPageState();
+}
+
+class _RolesManagementPageState extends State<RolesManagementPage> {
+  final UsersService _usersService = UsersService();
+  final RolesService _rolesService = RolesService();
+
+  bool _isLoading = true;
+  String? _errorMessage;
+  List<RoleSummary> _roles = const [];
+  Map<String, int> _roleUsage = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoles();
+  }
+
+  Future<void> _loadRoles() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final results = await Future.wait([
+        _rolesService.getRoles(),
+        _usersService.getUsers(),
+      ]);
+      final roles = results[0] as List<RoleSummary>;
+      final users = results[1] as List<User>;
+      if (!mounted) return;
+      setState(() {
+        _roles = roles;
+        _roleUsage = _roleUsageFromUsers(users);
+        _isLoading = false;
+      });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = error.message;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Failed to load user roles.';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Map<String, int> _roleUsageFromUsers(List<User> users) {
+    final counts = <String, int>{};
+
+    for (final user in users) {
+      final roles = user.roles.isNotEmpty
+          ? user.roles
+          : user.role == null || user.role!.trim().isEmpty
+              ? const <String>[]
+              : [user.role!];
+      for (final role in roles) {
+        final normalized = role.trim();
+        if (normalized.isEmpty) continue;
+        counts[normalized] = (counts[normalized] ?? 0) + 1;
+      }
+    }
+
+    return counts;
+  }
+
+  Future<void> _createRole() async {
+    final roleName = await _showRoleNameDialog(context, title: 'Create Role');
+    if (roleName == null) return;
+    await _runMutation(() => _rolesService.createRole(roleName));
+  }
+
+  Future<void> _editRole(RoleSummary role) async {
+    final roleName = await _showRoleNameDialog(
+      context,
+      title: 'Update Role',
+      initialValue: role.roleName,
+      roleOptions: _roles.map((role) => role.roleName).toList(),
+    );
+    if (roleName == null) return;
+    await _runMutation(
+      () => _rolesService.updateRole(id: role.id, roleName: roleName),
+    );
+  }
+
+  Future<void> _deleteRole(RoleSummary role) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete role?'),
+            content: Text('This will delete ${role.roleName}.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    await _runMutation(() => _rolesService.deleteRole(role.id));
+  }
+
+  Future<void> _runMutation(Future<dynamic> Function() task) async {
+    try {
+      await task();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Role saved successfully.')),
+      );
+      await _loadRoles();
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? const Color(0xFF020B1F) : const Color(0xFFF6FAFF);
+    final bgEnd = isDark ? const Color(0xFF03142D) : const Color(0xFFEEF6FF);
+    final card = isDark
+        ? const Color.fromRGBO(5, 18, 45, 0.72)
+        : const Color.fromRGBO(255, 255, 255, 0.86);
+    final border = isDark
+        ? const Color.fromRGBO(56, 189, 248, 0.22)
+        : const Color.fromRGBO(59, 130, 246, 0.16);
+    final text = isDark ? const Color(0xFFF8FAFC) : const Color(0xFF061B5B);
+    final muted = isDark ? const Color(0xFF9DB2D8) : const Color(0xFF6678A5);
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [bg, bgEnd],
+        ),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 640;
+          return SingleChildScrollView(
+            padding: EdgeInsets.all(compact ? 14 : 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ManagementToolbar(
+                  title: 'Roles Management',
+                  text: text,
+                  onRefresh: _isLoading ? null : _loadRoles,
+                  primaryLabel: 'Add Role',
+                  onPrimary: _isLoading ? null : _createRole,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: card,
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: border),
+                  ),
+                  child: compact
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: _heroContent(text, muted, compact),
+                        )
+                      : Row(children: _heroContent(text, muted, compact)),
+                ),
+                const SizedBox(height: 22),
+                if (_isLoading)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                else if (_errorMessage != null)
+                  _StatePanel(
+                    icon: Icons.warning_amber_rounded,
+                    message: _errorMessage!,
+                    text: text,
+                    muted: muted,
+                    onRetry: _loadRoles,
+                  )
+                else if (_roles.isEmpty)
+                  _StatePanel(
+                    icon: Icons.admin_panel_settings_outlined,
+                    message: 'No roles available yet.',
+                    text: text,
+                    muted: muted,
+                    onRetry: _loadRoles,
+                  )
+                else
+                  ..._roles.map(
+                    (role) => Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: card,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: border),
+                      ),
+                      child: LayoutBuilder(
+                        builder: (context, rowConstraints) {
+                          final stackRow = rowConstraints.maxWidth < 720;
+                          final details = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                role.roleName,
+                                style: TextStyle(
+                                  color: text,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 20,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Access group',
+                                style: TextStyle(color: muted),
+                              ),
+                            ],
+                          );
+                          final stats = Wrap(
+                            spacing: 28,
+                            runSpacing: 12,
+                            children: [
+                              _miniStat(
+                                'Users',
+                                (_roleUsage[role.roleName] ?? 0).toString(),
+                                text,
+                                muted,
+                              ),
+                              _miniStat('Status', 'Active', text, muted),
+                            ],
+                          );
+                          final actions = Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () => _editRole(role),
+                                icon: const Icon(Icons.edit_rounded, size: 18),
+                                label: const Text('Edit'),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: () => _deleteRole(role),
+                                icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 18,
+                                ),
+                                label: const Text('Delete'),
+                              ),
+                            ],
+                          );
+
+                          if (stackRow) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                details,
+                                const SizedBox(height: 16),
+                                stats,
+                                const SizedBox(height: 16),
+                                actions,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              Expanded(flex: 3, child: details),
+                              Expanded(flex: 2, child: stats),
+                              actions,
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  List<Widget> _heroContent(Color text, Color muted, bool compact) {
+    return [
+      Container(
+        width: compact ? 58 : 72,
+        height: compact ? 58 : 72,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF38BDF8).withValues(alpha: 0.14),
+        ),
+        child: Icon(
+          Icons.admin_panel_settings_outlined,
+          color: const Color(0xFF38BDF8),
+          size: compact ? 28 : 34,
+        ),
+      ),
+      SizedBox(width: compact ? 0 : 18, height: compact ? 14 : 0),
+      if (!compact)
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _heroText(text, muted, compact),
+          ),
+        )
+      else
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: _heroText(text, muted, compact),
+        ),
+    ];
+  }
+
+  List<Widget> _heroText(Color text, Color muted, bool compact) {
+    return [
+      Text(
+        'Roles',
+        style: TextStyle(
+          color: text,
+          fontSize: compact ? 28 : 32,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Design the access structure for administrators, operators, supervisors, and site users.',
+        style: TextStyle(color: muted, fontSize: 15),
+      ),
+    ];
+  }
+
+  Widget _miniStat(String label, String value, Color text, Color muted) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style:
+              TextStyle(color: text, fontWeight: FontWeight.w800, fontSize: 24),
+        ),
+        const SizedBox(height: 4),
+        Text(label, style: TextStyle(color: muted)),
+      ],
+    );
+  }
+}
+
+class _ManagementToolbar extends StatelessWidget {
+  final String title;
+  final Color text;
+  final String primaryLabel;
+  final VoidCallback? onPrimary;
+  final VoidCallback? onRefresh;
+
+  const _ManagementToolbar({
+    required this.title,
+    required this.text,
+    required this.primaryLabel,
+    required this.onPrimary,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        SizedBox(
+          width: 220,
+          child: Text(
+            title,
+            style: TextStyle(
+              color: text,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        OutlinedButton(
+          onPressed: onRefresh,
+          child: const Icon(Icons.refresh_rounded, size: 20),
+        ),
+        FilledButton.icon(
+          onPressed: onPrimary,
+          icon: const Icon(Icons.add_rounded),
+          label: Text(primaryLabel),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatePanel extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  final Color text;
+  final Color muted;
+  final VoidCallback onRetry;
+
+  const _StatePanel({
+    required this.icon,
+    required this.message,
+    required this.text,
+    required this.muted,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(icon, color: muted, size: 36),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: text, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Future<String?> _showRoleNameDialog(
+  BuildContext context, {
+  required String title,
+  String? initialValue,
+  List<String>? roleOptions,
+}) async {
+  final controller = TextEditingController(text: initialValue ?? '');
+  final formKey = GlobalKey<FormState>();
+  final options = roleOptions == null
+      ? const <String>[]
+      : {
+          if (initialValue != null && initialValue.trim().isNotEmpty)
+            initialValue.trim(),
+          ...roleOptions.where((role) => role.trim().isNotEmpty),
+        }.toList();
+  var selectedRole = initialValue?.trim().isNotEmpty == true
+      ? initialValue!.trim()
+      : options.isNotEmpty
+          ? options.first
+          : null;
+
+  final result = await showDialog<String>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: Text(title),
+        content: Form(
+          key: formKey,
+          child: options.isEmpty
+              ? TextFormField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    labelText: 'Role name',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Role is required.'
+                      : null,
+                )
+              : DropdownButtonFormField<String>(
+                  initialValue: selectedRole,
+                  items: options
+                      .map(
+                        (role) => DropdownMenuItem<String>(
+                          value: role,
+                          child: Text(role),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setDialogState(() => selectedRole = value);
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Role name',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty
+                          ? 'Role is required.'
+                          : null,
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!formKey.currentState!.validate()) return;
+              Navigator.pop(
+                context,
+                options.isEmpty ? controller.text.trim() : selectedRole,
+              );
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  controller.dispose();
+  return result;
+}

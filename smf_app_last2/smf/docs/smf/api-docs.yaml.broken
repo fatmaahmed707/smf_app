@@ -1,0 +1,1784 @@
+openapi: 3.0.0
+info:
+  title: SMF (Security Management Framework) API
+  version: 1.0.0
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Authenticate user
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_auth-controller_authenticate_user_yml
+      description: Authenticates a user and returns a JWT token
+      tags:
+        - auth-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                      expiresIn:
+                        type: integer
+              examples:
+                Example_login_response_Example_login_request:
+                  value:
+                    success: true
+                    message: Login successful
+                    data:
+                      token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                      expiresIn: 3600
+                  summary: Example login response (Example login request)
+                example:
+                  value:
+                    success: true
+                    message: Here's your token.
+                    data:
+                      id: 1c4f0010-0502-412c-882a-c77cf589d5b4
+                      accessToken: >-
+                        eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxYzRmMDAxMC0wNTAyLTQxMmMtODgyYS1jNzdjZjU4OWQ1YjQiLCJlbWFpbCI6ImFkbWluQHNtZi5jb20iLCJyb2xlcyI6WyJBRE1JTiJdLCJpYXQiOjE3NzgxNjg2NTcsImV4cCI6MTc3ODE2OTI1N30.GIcjhSqUFhIdycOeuqvBx2acTwX5Uo0j-4qOjRWLL0s
+                      refreshToken: >-
+                        1d844a9f-8b34-4f0c-b32a-cd754bac6f10.0FoeM1PUNFD_rMBJgXb-n-mjkJ9zGS_if8CE1TMhTHc
+                    time: '2026-05-07T15:44:17.405234144Z'
+                  summary: example
+      requestBody:
+        $ref: '#/components/requestBodies/authenticate_user'
+      servers:
+        - url: http://localhost:8080
+  /api/v1/auth/google:
+    post:
+      summary: Authenticate with Google
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_auth-controller_authenticate_with_google_yml
+      description: Authenticates a user using their Google ID token
+      tags:
+        - auth-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Signed in with Google.
+                data:
+                  accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  refreshToken: dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4...
+                time: '2024-01-15T10:30:00Z'
+      requestBody:
+        $ref: '#/components/requestBodies/authenticate_with_google'
+  /api/v1/auth/logout:
+    post:
+      summary: Logout user
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_auth-controller_logout_user_yml
+      description: Invalidates the refresh token to logout the user
+      tags:
+        - auth-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Logged out successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      requestBody:
+        $ref: '#/components/requestBodies/logout_user'
+  /api/v1/auth/refresh:
+    post:
+      summary: Refresh access tokens
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_auth-controller_refresh_access_tokens_yml
+      description: Issues new access and refresh tokens using a valid refresh token
+      tags:
+        - auth-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Tokens refreshed
+                data:
+                  accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  refreshToken: dGhpcyBpcyBhIG5ldyByZWZyZXNoIHRva2Vu...
+                time: '2024-01-15T10:30:00Z'
+      requestBody:
+        $ref: '#/components/requestBodies/refresh_access_tokens'
+  /api/v1/auth/register:
+    post:
+      summary: Register a new user account
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_auth-controller_register_a_new_user_account_yml
+      description: Creates a new user account with email, username, and password
+      tags:
+        - auth-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: User registered successfully
+                data:
+                  userId: 550e8400-e29b-41d4-a716-446655440000
+                time: '2024-01-15T10:30:00Z'
+      requestBody:
+        $ref: '#/components/requestBodies/register_a_new_user_account'
+  /api/v1/smfdevices/:
+    post:
+      summary: Add device to registry
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_dev-only-controller_add_device_to_registry_yml
+      description: |
+        Adds a new SMF device to the factory registry.
+        Only available in dev mode (app.is-dev-mode=true).
+      tags:
+        - dev-only-controller
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Device added successfully
+                data:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  macAddress: 00:1A:2B:3C:4D:5E
+                  label: Device-001
+                time: '2024-01-15T10:30:00Z'
+        '409':
+          description: Conflict
+      requestBody:
+        $ref: '#/components/requestBodies/add_device_to_registry'
+      security:
+        - add_device_to_registry: []
+    get:
+      summary: Get all SMF devices
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_smf-device-controller_get_all_smf_devices_yml
+      description: >-
+        Retrieves all SMF devices from the factory registry. Requires ADMIN
+        role.
+      tags:
+        - smf-device-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Devices fetched successfully
+                data:
+                  - id: 550e8400-e29b-41d4-a716-446655440000
+                    macAddress: 00:1A:2B:3C:4D:5E
+                    label: Device-001
+                    isRegistered: true
+                  - id: 550e8400-e29b-41d4-a716-446655440001
+                    macAddress: 00:1A:2B:3C:4D:5F
+                    label: Device-002
+                    isRegistered: false
+                time: '2024-01-15T10:30:00Z'
+      security:
+        - get_all_smf_devices: []
+  /api/v1/auth/isAuthenticated:
+    get:
+      summary: Check if request is authenticated
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_dev-only-controller_check_if_request_is_authenticated_yml
+      description: Verifies if the current request is authenticated (user or device)
+      tags:
+        - dev-only-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Authenticated
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+  /api/v1/auth/isAdmin:
+    get:
+      summary: Check if user is admin
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_dev-only-controller_check_if_user_is_admin_yml
+      description: Verifies if the current authenticated user has admin privileges
+      tags:
+        - dev-only-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Admin access confirmed
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+  /api/v1/auth/isUser:
+    get:
+      summary: Check if user is authenticated
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_dev-only-controller_check_if_user_is_authenticated_yml
+      description: Verifies if the current request has a valid user authentication
+      tags:
+        - dev-only-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: User authenticated
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+  /api/v1/smfdevices/:id:
+    delete:
+      summary: Remove device from registry
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_dev-only-controller_remove_device_from_registry_yml
+      description: |
+        Removes an SMF device from the factory registry.
+        Only available in dev mode (app.is-dev-mode=true).
+      tags:
+        - dev-only-controller
+      responses:
+        '204':
+          description: No Content
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the SMF device to remove
+          required: true
+          schema:
+            type: string
+      security:
+        - remove_device_from_registry: []
+    get:
+      summary: Get SMF device by ID
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_smf-device-controller_get_smf_device_by_id_yml
+      description: Retrieves a specific SMF device by its UUID. Requires ADMIN role.
+      tags:
+        - smf-device-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Device fetched successfully
+                data:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  macAddress: 00:1A:2B:3C:4D:5E
+                  label: Device-001
+                  isRegistered: true
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the SMF device
+          required: true
+          schema:
+            type: string
+      security:
+        - get_smf_device_by_id: []
+  /api/v1/devices/:id:
+    delete:
+      summary: Delete a device
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_device-controller_delete_a_device_yml
+      description: Deletes a device by its UUID
+      tags:
+        - device-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Device deleted successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the device to delete
+          required: true
+          schema:
+            type: string
+    get:
+      summary: Get a device by ID
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_device-controller_get_a_device_by_id_yml
+      description: Retrieves a specific device by its UUID
+      tags:
+        - device-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Device retrieved successfully
+                data:
+                  id: 550e8400-e29b-41d4-a716-446655440001
+                  macAddress: 00:1A:2B:3C:4D:5E
+                  ownerId: 550e8400-e29b-41d4-a716-446655440000
+                  status: ONLINE
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the device
+          required: true
+          schema:
+            type: string
+    put:
+      summary: Update an existing device
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_device-controller_update_an_existing_device_yml
+      description: Updates device information including label, owner, and location
+      tags:
+        - device-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Device updated successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the device to update
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: '#/components/requestBodies/update_an_existing_device'
+  /api/v1/devices/:
+    get:
+      summary: Get all devices
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_device-controller_get_all_devices_yml
+      description: Retrieves all registered devices in the system
+      tags:
+        - device-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Devices retrieved successfully
+                data:
+                  - id: 550e8400-e29b-41d4-a716-446655440001
+                    macAddress: 00:1A:2B:3C:4D:5E
+                    ownerId: 550e8400-e29b-41d4-a716-446655440000
+                    status: ONLINE
+                  - id: 550e8400-e29b-41d4-a716-446655440002
+                    macAddress: 00:1A:2B:3C:4D:5F
+                    ownerId: 550e8400-e29b-41d4-a716-446655440001
+                    status: OFFLINE
+                time: '2024-01-15T10:30:00Z'
+    post:
+      summary: Register a new device
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_device-controller_register_a_new_device_yml
+      description: Registers a new device in the system
+      tags:
+        - device-controller
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Device registered successfully
+                data:
+                  id: 550e8400-e29b-41d4-a716-446655440001
+                  macAddress: 00:1A:2B:3C:4D:5E
+                  ownerId: 550e8400-e29b-41d4-a716-446655440000
+                  status: ONLINE
+                time: '2024-01-15T10:30:00Z'
+      requestBody:
+        $ref: '#/components/requestBodies/register_a_new_device'
+  /api/v1/devices/zone-entry:
+    post:
+      summary: Record device zone entry
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_device-controller_record_device_zone_entry_yml
+      description: |
+        Records when a device enters a specific zone.
+        Requires device authentication headers.
+      tags:
+        - device-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Zone entry recorded successfully
+                data:
+                  deviceId: 550e8400-e29b-41d4-a716-446655440001
+                  zoneId: 550e8400-e29b-41d4-a716-446655440000
+                  zoneName: Main Entrance
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: X-Device-Mac
+          in: header
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: X-Device-Timestamp
+          in: header
+          description: ''
+          required: true
+          schema:
+            type: string
+        - name: X-Device-Signature
+          in: header
+          description: ''
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: '#/components/requestBodies/record_device_zone_entry'
+/api/v1/events/client:
+    get:
+      summary: Get client events
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_event-controller_get_client_events_yml
+      description: Retrieves events that have occurred since the specified time
+      tags:
+        - event-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Events retrieved successfully
+                data:
+                  - eventId: 550e8400-e29b-41d4-a716-446655440000
+                    deviceId: 550e8400-e29b-41d4-a716-446655440001
+                    macAddress: 00:1A:2B:3C:4D:5E
+                    event: DEVICE_ONLINE
+                    timestamp: '2024-01-15T10:25:00Z'
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: since
+          in: query
+          description: Filter events that occurred after this timestamp
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+/api/v1/events/device:
+    post:
+      summary: Submit a device event
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_event-controller_submit_a_device_event_yml
+      description: >-
+        Receives events from devices such as status changes, access events, and alerts
+      tags:
+        - event-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Event completed successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      requestBody:
+        $ref: '#/components/requestBodies/submit_a_device_event'
+  /api/v1/roles/:
+    post:
+      summary: Create a new role
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_role-controller_create_a_new_role_yml
+      description: Creates a new role with the specified name
+      tags:
+        - role-controller
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Role created successfully
+                data:
+                  id: 1
+                  roleName: MANAGER
+                time: '2024-01-15T10:30:00Z'
+      requestBody:
+        $ref: '#/components/requestBodies/create_a_new_role'
+    get:
+      summary: Get all roles
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_role-controller_get_all_roles_yml
+      description: Retrieves all roles in the system
+      tags:
+        - role-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Roles retrieved successfully
+                data:
+                  - id: 1
+                    roleName: ADMIN
+                  - id: 2
+                    roleName: USER
+                  - id: 3
+                    roleName: OPERATOR
+                time: '2024-01-15T10:30:00Z'
+  /api/v1/roles/:id:
+    delete:
+      summary: Delete a role
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_role-controller_delete_a_role_yml
+      description: Deletes a role by its ID
+      tags:
+        - role-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Role deleted successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: ID of the role to delete
+          required: true
+          schema:
+            type: string
+    get:
+      summary: Get a role by ID
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_role-controller_get_a_role_by_id_yml
+      description: Retrieves a specific role by its ID
+      tags:
+        - role-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Role retrieved successfully
+                data:
+                  id: 1
+                  roleName: ADMIN
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: ID of the role
+          required: true
+          schema:
+            type: string
+    put:
+      summary: Update an existing role
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_role-controller_update_an_existing_role_yml
+      description: Updates the name of an existing role
+      tags:
+        - role-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Role updated successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: ID of the role to update
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: '#/components/requestBodies/update_an_existing_role'
+/api/v1/smfdevices/label/:label:
+    get:
+      summary: Get SMF device by label
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_smf-device-controller_get_smf_device_by_label_yml
+      description: Retrieves a specific SMF device by its label. Requires ADMIN role.
+      tags:
+        - smf-device-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Device fetched successfully
+                data:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  macAddress: 00:1A:2B:3C:4D:5E
+                  label: Device-001
+                  isRegistered: true
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: label
+          in: path
+          description: Label of the SMF device
+          required: true
+          schema:
+            type: string
+      security:
+        - get_smf_device_by_label: []
+/api/v1/smfdevices/unregistered:
+    get:
+      summary: Get unregistered SMF devices
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_smf-device-controller_get_unregistered_smf_devices_yml
+      description: >-
+        Retrieves all unregistered SMF devices available for user registration.
+        Requires ADMIN role.
+      tags:
+        - smf-device-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Unregistered devices fetched successfully
+                data:
+                  - id: 550e8400-e29b-41d4-a716-446655440001
+                    macAddress: 00:1A:2B:3C:4D:5F
+                    label: Device-002
+                    isRegistered: false
+                time: '2024-01-15T10:30:00Z'
+      security:
+        - get_unregistered_smf_devices: []
+  /api/v1/users/:
+    post:
+      summary: Create a new user
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_user-controller_create_a_new_user_yml
+      description: Creates a new user with the specified details
+      tags:
+        - user-controller
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: User created successfully
+                data:
+                  userId: 550e8400-e29b-41d4-a716-446655440000
+                time: '2024-01-15T10:30:00Z'
+      requestBody:
+        $ref: '#/components/requestBodies/create_a_new_user'
+    get:
+      summary: Get all users
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_user-controller_get_all_users_yml
+      description: Retrieves all users in the system
+      tags:
+        - user-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Users retrieved successfully
+                data:
+                  - id: 550e8400-e29b-41d4-a716-446655440000
+                    username: admin
+                    email: admin@smf.com
+                    roles:
+                      - ADMIN
+                  - id: 550e8400-e29b-41d4-a716-446655440001
+                    username: user1
+                    email: user1@smf.com
+                    roles:
+                      - USER
+                time: '2024-01-15T10:30:00Z'
+  /api/v1/users/me:
+    get:
+      summary: Get current user
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_user-controller_get_current_user_yml
+      description: Retrieves the currently authenticated user
+      tags:
+        - user-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: User fetched successfully
+                data:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  username: currentuser
+                  email: user@smf.com
+                  roles:
+                    - USER
+                time: '2024-01-15T10:30:00Z'
+  /api/v1/users/:id:
+    delete:
+      summary: Delete a user
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_user-controller_delete_a_user_yml
+      description: Deletes a user by their UUID
+      tags:
+        - user-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: User deleted successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the user to delete
+          required: true
+          schema:
+            type: string
+    get:
+      summary: Get a user by ID
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_user-controller_get_a_user_by_id_yml
+      description: Retrieves a specific user by their UUID
+      tags:
+        - user-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: User retrieved successfully
+                data:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  username: user1
+                  email: user1@smf.com
+                  roles:
+                    - USER
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the user
+          required: true
+          schema:
+            type: string
+    put:
+      summary: Update an existing user
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_user-controller_update_an_existing_user_yml
+      description: Updates user information including email, username, password, and roles
+      tags:
+        - user-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: User updated successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the user to update
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: '#/components/requestBodies/update_an_existing_user'
+  /api/v1/zones/:id/roles/:roleId:
+    post:
+      summary: Assign a role to a zone
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_zone-controller_assign_a_role_to_a_zone_yml
+      description: Associates a role with a specific zone
+      tags:
+        - zone-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Role assigned to zone successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the zone
+          required: true
+          schema:
+            type: string
+        - name: roleId
+          in: path
+          description: ID of the role to assign
+          required: true
+          schema:
+            type: string
+    delete:
+      summary: Remove a role from a zone
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_zone-controller_remove_a_role_from_a_zone_yml
+      description: Removes a role association from a specific zone
+      tags:
+        - zone-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Role removed from zone successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the zone
+          required: true
+          schema:
+            type: string
+        - name: roleId
+          in: path
+          description: ID of the role to remove
+          required: true
+          schema:
+            type: string
+  /api/v1/zones/:
+    post:
+      summary: Create a new zone
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_zone-controller_create_a_new_zone_yml
+      description: Creates a new zone with the specified name
+      tags:
+        - zone-controller
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Zone created successfully
+                data:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  name: Main Entrance
+                time: '2024-01-15T10:30:00Z'
+      requestBody:
+        $ref: '#/components/requestBodies/create_a_new_zone'
+    get:
+      summary: Get all zones
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_zone-controller_get_all_zones_yml
+      description: Retrieves all zones, optionally filtered by name
+      tags:
+        - zone-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Zones retrieved successfully
+                data:
+                  - id: 550e8400-e29b-41d4-a716-446655440000
+                    name: Main Entrance
+                  - id: 550e8400-e29b-41d4-a716-446655440001
+                    name: Office Area
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: name
+          in: query
+          description: Optional name filter
+          required: false
+          schema:
+            type: string
+  /api/v1/zones/:id:
+    delete:
+      summary: Delete a zone
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_zone-controller_delete_a_zone_yml
+      description: Deletes a zone by its UUID
+      tags:
+        - zone-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Zone deleted successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the zone to delete
+          required: true
+          schema:
+            type: string
+    get:
+      summary: Get a zone by ID
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_zone-controller_get_a_zone_by_id_yml
+      description: Retrieves a specific zone by its UUID
+      tags:
+        - zone-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Zone retrieved successfully
+                data:
+                  id: 550e8400-e29b-41d4-a716-446655440000
+                  name: Main Entrance
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the zone
+          required: true
+          schema:
+            type: string
+    put:
+      summary: Update an existing zone
+      operationId: >-
+        home_joe-arch_documents_bruno_smf_security_management_framework_api_zone-controller_update_an_existing_zone_yml
+      description: Updates the name of an existing zone
+      tags:
+        - zone-controller
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                  time:
+                    type: string
+              example:
+                success: true
+                message: Zone updated successfully
+                data: {}
+                time: '2024-01-15T10:30:00Z'
+      parameters:
+        - name: id
+          in: path
+          description: UUID of the zone to update
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: '#/components/requestBodies/update_an_existing_zone'
+servers:
+  - url: http://localhost:8080
+    description: Base Server
+  - url: http://localhost:8080
+    description: Local development server
+components:
+  schemas:
+    authenticate_user:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      example:
+        email: admin@smf.com
+        password: password
+    authenticate_with_google:
+      type: object
+      properties:
+        idToken:
+          type: string
+      example:
+        idToken: ''
+    logout_user:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+      example:
+        refreshToken: ''
+    refresh_access_tokens:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+      example:
+        refreshToken: ''
+    register_a_new_user_account:
+      type: object
+      properties:
+        email:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+      example:
+        email: newuser@example.com
+        username: newuser
+        password: SecurePassword123!
+    add_device_to_registry:
+      type: object
+      properties:
+        macAddress:
+          type: string
+        label:
+          type: string
+        secret:
+          type: string
+      example:
+        macAddress: 00:1A:2B:3C:4D:5E
+        label: Device-001
+        secret: my-secret-key-123
+    record_device_zone_entry:
+      type: object
+      properties:
+        zoneId:
+          type: string
+      example:
+        zoneId: 550e8400-e29b-41d4-a716-446655440000
+    register_a_new_device:
+      type: object
+      properties:
+        smfDeviceLabel:
+          type: string
+        ownerId:
+          type: string
+        lastLocationLat:
+          type: number
+        lastLocationLon:
+          type: number
+      example:
+        smfDeviceLabel: New Device
+        ownerId: 550e8400-e29b-41d4-a716-446655440000
+        lastLocationLat: 40.7128
+        lastLocationLon: -74.006
+    update_an_existing_device:
+      type: object
+      properties:
+        smfDeviceLabel:
+          type: string
+        ownerId:
+          type: string
+        lastLocationLat:
+          type: number
+        lastLocationLon:
+          type: number
+      example:
+        smfDeviceLabel: Updated Device Label
+        ownerId: 550e8400-e29b-41d4-a716-446655440000
+        lastLocationLat: 40.7128
+        lastLocationLon: -74.006
+    submit_a_device_event:
+      type: object
+      properties:
+        macAddress:
+          type: string
+        event:
+          type: string
+      example:
+        macAddress: 00:1A:2B:3C:4D:5E
+        event: DEVICE_ONLINE
+    create_a_new_role:
+      type: object
+      properties:
+        roleName:
+          type: string
+      example:
+        roleName: MANAGER
+    update_an_existing_role:
+      type: object
+      properties:
+        roleName:
+          type: string
+      example:
+        roleName: SUPER_ADMIN
+    create_a_new_user:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+      example:
+        username: newuser
+        email: newuser@example.com
+        password: Password123!
+        roles:
+          - USER
+    update_an_existing_user:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+      example:
+        username: updateduser
+        email: updated@example.com
+        password: NewPassword123!
+        roles:
+          - USER
+          - OPERATOR
+    create_a_new_zone:
+      type: object
+      properties:
+        name:
+          type: string
+      example:
+        name: New Zone
+    update_an_existing_zone:
+      type: object
+      properties:
+        name:
+          type: string
+      example:
+        name: Updated Zone Name
+  requestBodies:
+    authenticate_user:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/authenticate_user'
+      description: ''
+      required: true
+    authenticate_with_google:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/authenticate_with_google'
+      description: ''
+      required: true
+    logout_user:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/logout_user'
+      description: ''
+      required: true
+    refresh_access_tokens:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/refresh_access_tokens'
+      description: ''
+      required: true
+    register_a_new_user_account:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/register_a_new_user_account'
+      description: ''
+      required: true
+    add_device_to_registry:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/add_device_to_registry'
+      description: ''
+      required: true
+    record_device_zone_entry:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/record_device_zone_entry'
+      description: ''
+      required: true
+    register_a_new_device:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/register_a_new_device'
+      description: ''
+      required: true
+    update_an_existing_device:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/update_an_existing_device'
+      description: ''
+      required: true
+    submit_a_device_event:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/submit_a_device_event'
+      description: ''
+      required: true
+    create_a_new_role:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/create_a_new_role'
+      description: ''
+      required: true
+    update_an_existing_role:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/update_an_existing_role'
+      description: ''
+      required: true
+    create_a_new_user:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/create_a_new_user'
+      description: ''
+      required: true
+    update_an_existing_user:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/update_an_existing_user'
+      description: ''
+      required: true
+    create_a_new_zone:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/create_a_new_zone'
+      description: ''
+      required: true
+    update_an_existing_zone:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/update_an_existing_zone'
+      description: ''
+      required: true
+  securitySchemes:
+    add_device_to_registry:
+      type: http
+      scheme: bearer
+    remove_device_from_registry:
+      type: http
+      scheme: bearer
+    get_smf_device_by_id:
+      type: http
+      scheme: bearer
+    get_smf_device_by_label:
+      type: http
+      scheme: bearer
+    get_all_smf_devices:
+      type: http
+      scheme: bearer
+    get_unregistered_smf_devices:
+      type: http
+      scheme: bearer
