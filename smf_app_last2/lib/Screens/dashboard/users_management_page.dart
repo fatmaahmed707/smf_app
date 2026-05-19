@@ -22,6 +22,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
   List<RoleSummary> _roles = const [];
   String? _errorMessage;
   String _searchQuery = '';
+  int _currentPage = 1;
+
+  static const int _usersPerPage = 10;
 
   @override
   void initState() {
@@ -212,13 +215,32 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
           (user.role ?? '').toLowerCase().contains(query);
     }).toList();
 
+    final calculatedTotalPages = (filteredUsers.length / _usersPerPage).ceil();
+    final totalPages = calculatedTotalPages < 1 ? 1 : calculatedTotalPages;
+    final currentPage = _currentPage < 1
+        ? 1
+        : _currentPage > totalPages
+            ? totalPages
+            : _currentPage;
+    final startIndex = (currentPage - 1) * _usersPerPage;
+    final visibleUsers = filteredUsers
+        .skip(startIndex)
+        .take(_usersPerPage)
+        .toList();
+
     return _UsersConsole(
-      users: filteredUsers,
+      users: visibleUsers,
       totalUsers: _users.length,
+      currentPage: currentPage,
+      totalPages: totalPages,
       isLoading: _isLoading,
       errorMessage: _errorMessage,
       searchQuery: _searchQuery,
-      onSearchChanged: (value) => setState(() => _searchQuery = value),
+      onSearchChanged: (value) => setState(() {
+        _searchQuery = value;
+        _currentPage = 1;
+      }),
+      onPageChanged: (page) => setState(() => _currentPage = page),
       onRefresh: _isLoading ? null : _load,
       onAdd: _isLoading ? null : _showCreateDialog,
       onDetails: _showDetails,
@@ -364,10 +386,13 @@ Future<void> _showUserFormDialog(
 class _UsersConsole extends StatelessWidget {
   final List<User> users;
   final int totalUsers;
+  final int currentPage;
+  final int totalPages;
   final bool isLoading;
   final String? errorMessage;
   final String searchQuery;
   final ValueChanged<String> onSearchChanged;
+  final ValueChanged<int> onPageChanged;
   final VoidCallback? onRefresh;
   final VoidCallback? onAdd;
   final ValueChanged<User> onDetails;
@@ -377,10 +402,13 @@ class _UsersConsole extends StatelessWidget {
   const _UsersConsole({
     required this.users,
     required this.totalUsers,
+    required this.currentPage,
+    required this.totalPages,
     required this.isLoading,
     required this.errorMessage,
     required this.searchQuery,
     required this.onSearchChanged,
+    required this.onPageChanged,
     required this.onRefresh,
     required this.onAdd,
     required this.onDetails,
@@ -436,6 +464,9 @@ class _UsersConsole extends StatelessWidget {
               _UsersFooter(
                 palette: palette,
                 totalUsers: totalUsers,
+                currentPage: currentPage,
+                totalPages: totalPages,
+                onPageChanged: onPageChanged,
               ),
             ],
           ),
@@ -499,11 +530,6 @@ class _UsersToolbar extends StatelessWidget {
           spacing: 10,
           runSpacing: 10,
           children: [
-            _IconSquareButton(
-              palette: palette,
-              icon: Icons.filter_alt_outlined,
-              onPressed: () {},
-            ),
             _IconSquareButton(
               palette: palette,
               icon: Icons.refresh_rounded,
@@ -1079,10 +1105,16 @@ class _IconSquareButton extends StatelessWidget {
 class _UsersFooter extends StatelessWidget {
   final _UsersPalette palette;
   final int totalUsers;
+  final int currentPage;
+  final int totalPages;
+  final ValueChanged<int> onPageChanged;
 
   const _UsersFooter({
     required this.palette,
     required this.totalUsers,
+    required this.currentPage,
+    required this.totalPages,
+    required this.onPageChanged,
   });
 
   @override
@@ -1107,62 +1139,54 @@ class _UsersFooter extends StatelessWidget {
         final pager = Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _PageButton(icon: Icons.keyboard_double_arrow_left, palette: palette),
-            const SizedBox(width: 8),
-            _PageButton(icon: Icons.chevron_left_rounded, palette: palette),
-            const SizedBox(width: 8),
-            Container(
-              width: 40,
-              height: 34,
-              decoration: BoxDecoration(
-                color: palette.blue,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Center(
-                child: Text(
-                  '1',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
+            _PageButton(
+              icon: Icons.keyboard_double_arrow_left,
+              palette: palette,
+              onPressed:
+                  currentPage > 1 ? () => onPageChanged(1) : null,
             ),
             const SizedBox(width: 8),
-            _PageButton(icon: Icons.chevron_right_rounded, palette: palette),
+            _PageButton(
+              icon: Icons.chevron_left_rounded,
+              palette: palette,
+              onPressed: currentPage > 1
+                  ? () => onPageChanged(currentPage - 1)
+                  : null,
+            ),
+            ...List.generate(
+              totalPages,
+              (index) {
+                final page = index + 1;
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: _PageNumberButton(
+                    page: page,
+                    isSelected: page == currentPage,
+                    palette: palette,
+                    onPressed: page == currentPage
+                        ? null
+                        : () => onPageChanged(page),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 8),
+            _PageButton(
+              icon: Icons.chevron_right_rounded,
+              palette: palette,
+              onPressed: currentPage < totalPages
+                  ? () => onPageChanged(currentPage + 1)
+                  : null,
+            ),
             const SizedBox(width: 8),
             _PageButton(
               icon: Icons.keyboard_double_arrow_right,
               palette: palette,
+              onPressed: currentPage < totalPages
+                  ? () => onPageChanged(totalPages)
+                  : null,
             ),
           ],
-        );
-        final pageSize = Container(
-          height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: palette.control,
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(color: palette.tableBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '10 / page',
-                style: TextStyle(
-                  color: palette.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: palette.textPrimary,
-                size: 18,
-              ),
-            ],
-          ),
         );
 
         if (compact) {
@@ -1171,7 +1195,7 @@ class _UsersFooter extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 18,
             runSpacing: 12,
-            children: [count, pager, pageSize],
+            children: [count, pager],
           );
         }
 
@@ -1180,7 +1204,6 @@ class _UsersFooter extends StatelessWidget {
           children: [
             Align(alignment: Alignment.centerLeft, child: count),
             pager,
-            Align(alignment: Alignment.centerRight, child: pageSize),
           ],
         );
       },
@@ -1188,11 +1211,54 @@ class _UsersFooter extends StatelessWidget {
   }
 }
 
+class _PageNumberButton extends StatelessWidget {
+  final int page;
+  final bool isSelected;
+  final _UsersPalette palette;
+  final VoidCallback? onPressed;
+
+  const _PageNumberButton({
+    required this.page,
+    required this.isSelected,
+    required this.palette,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 40,
+      height: 34,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: isSelected ? Colors.white : palette.textPrimary,
+          backgroundColor: isSelected ? palette.blue : palette.control,
+          padding: EdgeInsets.zero,
+          side: BorderSide(
+            color: isSelected ? palette.blue : palette.tableBorder,
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+        child: Text(
+          '$page',
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+      ),
+    );
+  }
+}
+
 class _PageButton extends StatelessWidget {
   final IconData icon;
   final _UsersPalette palette;
+  final VoidCallback? onPressed;
 
-  const _PageButton({required this.icon, required this.palette});
+  const _PageButton({
+    required this.icon,
+    required this.palette,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1200,12 +1266,18 @@ class _PageButton extends StatelessWidget {
       width: 34,
       height: 34,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          foregroundColor: palette.textPrimary,
+          foregroundColor: onPressed == null
+              ? palette.textMuted.withOpacity(0.45)
+              : palette.textPrimary,
           backgroundColor: palette.control,
           padding: EdgeInsets.zero,
-          side: BorderSide(color: palette.tableBorder),
+          side: BorderSide(
+            color: onPressed == null
+                ? palette.tableBorder.withOpacity(0.55)
+                : palette.tableBorder,
+          ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
         child: Icon(icon, size: 18),

@@ -1,4 +1,4 @@
-package com.smf.service.zone;
+ypackage com.smf.service.zone;
 
 import static org.junit.jupiter.api.Assertions.*;
 

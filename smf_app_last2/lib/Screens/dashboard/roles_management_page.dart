@@ -169,14 +169,6 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ManagementToolbar(
-                  title: 'Roles Management',
-                  text: text,
-                  onRefresh: _isLoading ? null : _loadRoles,
-                  primaryLabel: 'Add Role',
-                  onPrimary: _isLoading ? null : _createRole,
-                ),
-                const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -187,9 +179,23 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
                   child: compact
                       ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: _heroContent(text, muted, compact),
+                          children: _heroContent(
+                            text,
+                            muted,
+                            compact,
+                            onRefresh: _isLoading ? null : _loadRoles,
+                            onAddRole: _isLoading ? null : _createRole,
+                          ),
                         )
-                      : Row(children: _heroContent(text, muted, compact)),
+                      : Row(
+                          children: _heroContent(
+                            text,
+                            muted,
+                            compact,
+                            onRefresh: _isLoading ? null : _loadRoles,
+                            onAddRole: _isLoading ? null : _createRole,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 22),
                 if (_isLoading)
@@ -311,7 +317,17 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
     );
   }
 
-  List<Widget> _heroContent(Color text, Color muted, bool compact) {
+  List<Widget> _heroContent(
+    Color text,
+    Color muted,
+    bool compact, {
+    required VoidCallback? onRefresh,
+    required VoidCallback? onAddRole,
+  }) {
+    final controls = _RoleHeroActions(
+      onRefresh: onRefresh,
+      onAddRole: onAddRole,
+    );
     return [
       Container(
         width: compact ? 58 : 72,
@@ -335,10 +351,15 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
           ),
         )
       else
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: _heroText(text, muted, compact),
-        ),
+        ...[
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _heroText(text, muted, compact),
+          ),
+          const SizedBox(height: 16),
+          controls,
+        ],
+      if (!compact) controls,
     ];
   }
 
@@ -376,19 +397,13 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
   }
 }
 
-class _ManagementToolbar extends StatelessWidget {
-  final String title;
-  final Color text;
-  final String primaryLabel;
-  final VoidCallback? onPrimary;
+class _RoleHeroActions extends StatelessWidget {
   final VoidCallback? onRefresh;
+  final VoidCallback? onAddRole;
 
-  const _ManagementToolbar({
-    required this.title,
-    required this.text,
-    required this.primaryLabel,
-    required this.onPrimary,
+  const _RoleHeroActions({
     required this.onRefresh,
+    required this.onAddRole,
   });
 
   @override
@@ -398,25 +413,14 @@ class _ManagementToolbar extends StatelessWidget {
       runSpacing: 10,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        SizedBox(
-          width: 220,
-          child: Text(
-            title,
-            style: TextStyle(
-              color: text,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
         OutlinedButton(
           onPressed: onRefresh,
           child: const Icon(Icons.refresh_rounded, size: 20),
         ),
         FilledButton.icon(
-          onPressed: onPrimary,
+          onPressed: onAddRole,
           icon: const Icon(Icons.add_rounded),
-          label: Text(primaryLabel),
+          label: const Text('Add Role'),
         ),
       ],
     );
