@@ -1,10 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/user.dart';
 import '../../models/role_summary.dart';
+import '../../providers/language_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/roles_service.dart';
 import '../../services/users_service.dart';
+
+String _localizedRoleDisplayName(String value, LanguageProvider lang) {
+  switch (value.trim().toUpperCase()) {
+    case 'ADMIN':
+      return lang.getText('roleAdmin');
+    case 'ENGINEER':
+      return lang.getText('roleEngineer');
+    case 'MANAGER':
+      return lang.getText('roleManager');
+    case 'WORKER':
+      return lang.getText('roleWorker');
+    case 'ROLE_USER':
+      return lang.getText('roleUser');
+    default:
+      return value;
+  }
+}
 
 class RolesManagementPage extends StatefulWidget {
   const RolesManagementPage({super.key});
@@ -29,6 +48,7 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
   }
 
   Future<void> _loadRoles() async {
+    final lang = context.read<LanguageProvider>();
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -56,7 +76,7 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Failed to load user roles.';
+        _errorMessage = lang.getText('failedToLoadRoles');
         _isLoading = false;
       });
     }
@@ -82,15 +102,18 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
   }
 
   Future<void> _createRole() async {
-    final roleName = await _showRoleNameDialog(context, title: 'Create Role');
+    final lang = context.read<LanguageProvider>();
+    final roleName =
+        await _showRoleNameDialog(context, title: lang.getText('addRole'));
     if (roleName == null) return;
     await _runMutation(() => _rolesService.createRole(roleName));
   }
 
   Future<void> _editRole(RoleSummary role) async {
+    final lang = context.read<LanguageProvider>();
     final roleName = await _showRoleNameDialog(
       context,
-      title: 'Update Role',
+      title: lang.getText('edit'),
       initialValue: role.roleName,
       roleOptions: _roles.map((role) => role.roleName).toList(),
     );
@@ -101,19 +124,25 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
   }
 
   Future<void> _deleteRole(RoleSummary role) async {
+    final lang = context.read<LanguageProvider>();
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Delete role?'),
-            content: Text('This will delete ${role.roleName}.'),
+            title: Text(lang.getText('deleteRoleQuestion')),
+            content: Text(
+              lang.getText('willDeleteItem').replaceAll(
+                    '{name}',
+                    _localizedRoleDisplayName(role.roleName, lang),
+                  ),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text(lang.getText('cancel')),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete'),
+                child: Text(lang.getText('delete')),
               ),
             ],
           ),
@@ -127,8 +156,9 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
     try {
       await task();
       if (!mounted) return;
+      final lang = context.read<LanguageProvider>();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Role saved successfully.')),
+        SnackBar(content: Text(lang.getText('roleSaved'))),
       );
       await _loadRoles();
     } on ApiException catch (error) {
@@ -141,6 +171,7 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF020B1F) : const Color(0xFFF6FAFF);
     final bgEnd = isDark ? const Color(0xFF03142D) : const Color(0xFFEEF6FF);
@@ -169,14 +200,6 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ManagementToolbar(
-                  title: 'Roles Management',
-                  text: text,
-                  onRefresh: _isLoading ? null : _loadRoles,
-                  primaryLabel: 'Add Role',
-                  onPrimary: _isLoading ? null : _createRole,
-                ),
-                const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -187,9 +210,23 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
                   child: compact
                       ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: _heroContent(text, muted, compact),
+                          children: _heroContent(
+                            text,
+                            muted,
+                            compact,
+                            onRefresh: _isLoading ? null : _loadRoles,
+                            onAddRole: _isLoading ? null : _createRole,
+                          ),
                         )
-                      : Row(children: _heroContent(text, muted, compact)),
+                      : Row(
+                          children: _heroContent(
+                            text,
+                            muted,
+                            compact,
+                            onRefresh: _isLoading ? null : _loadRoles,
+                            onAddRole: _isLoading ? null : _createRole,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 22),
                 if (_isLoading)
@@ -210,7 +247,7 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
                 else if (_roles.isEmpty)
                   _StatePanel(
                     icon: Icons.admin_panel_settings_outlined,
-                    message: 'No roles available yet.',
+                    message: lang.getText('noRolesYet'),
                     text: text,
                     muted: muted,
                     onRetry: _loadRoles,
@@ -232,7 +269,7 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                role.roleName,
+                                _localizedRoleDisplayName(role.roleName, lang),
                                 style: TextStyle(
                                   color: text,
                                   fontWeight: FontWeight.w800,
@@ -241,7 +278,7 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Access group',
+                                lang.getText('accessGroup'),
                                 style: TextStyle(color: muted),
                               ),
                             ],
@@ -251,12 +288,17 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
                             runSpacing: 12,
                             children: [
                               _miniStat(
-                                'Users',
+                                lang.getText('users'),
                                 (_roleUsage[role.roleName] ?? 0).toString(),
                                 text,
                                 muted,
                               ),
-                              _miniStat('Status', 'Active', text, muted),
+                              _miniStat(
+                                lang.getText('status'),
+                                lang.getText('active'),
+                                text,
+                                muted,
+                              ),
                             ],
                           );
                           final actions = Wrap(
@@ -266,7 +308,7 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
                               OutlinedButton.icon(
                                 onPressed: () => _editRole(role),
                                 icon: const Icon(Icons.edit_rounded, size: 18),
-                                label: const Text('Edit'),
+                                label: Text(lang.getText('edit')),
                               ),
                               OutlinedButton.icon(
                                 onPressed: () => _deleteRole(role),
@@ -274,7 +316,7 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
                                   Icons.delete_outline_rounded,
                                   size: 18,
                                 ),
-                                label: const Text('Delete'),
+                                label: Text(lang.getText('delete')),
                               ),
                             ],
                           );
@@ -311,7 +353,17 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
     );
   }
 
-  List<Widget> _heroContent(Color text, Color muted, bool compact) {
+  List<Widget> _heroContent(
+    Color text,
+    Color muted,
+    bool compact, {
+    required VoidCallback? onRefresh,
+    required VoidCallback? onAddRole,
+  }) {
+    final controls = _RoleHeroActions(
+      onRefresh: onRefresh,
+      onAddRole: onAddRole,
+    );
     return [
       Container(
         width: compact ? 58 : 72,
@@ -335,17 +387,23 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
           ),
         )
       else
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: _heroText(text, muted, compact),
-        ),
+        ...[
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: _heroText(text, muted, compact),
+          ),
+          const SizedBox(height: 16),
+          controls,
+        ],
+      if (!compact) controls,
     ];
   }
 
   List<Widget> _heroText(Color text, Color muted, bool compact) {
+    final lang = context.watch<LanguageProvider>();
     return [
       Text(
-        'Roles',
+        lang.getText('roles'),
         style: TextStyle(
           color: text,
           fontSize: compact ? 28 : 32,
@@ -354,7 +412,7 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
       ),
       const SizedBox(height: 8),
       Text(
-        'Design the access structure for administrators, operators, supervisors, and site users.',
+        lang.getText('rolesSubtitle'),
         style: TextStyle(color: muted, fontSize: 15),
       ),
     ];
@@ -376,47 +434,31 @@ class _RolesManagementPageState extends State<RolesManagementPage> {
   }
 }
 
-class _ManagementToolbar extends StatelessWidget {
-  final String title;
-  final Color text;
-  final String primaryLabel;
-  final VoidCallback? onPrimary;
+class _RoleHeroActions extends StatelessWidget {
   final VoidCallback? onRefresh;
+  final VoidCallback? onAddRole;
 
-  const _ManagementToolbar({
-    required this.title,
-    required this.text,
-    required this.primaryLabel,
-    required this.onPrimary,
+  const _RoleHeroActions({
     required this.onRefresh,
+    required this.onAddRole,
   });
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return Wrap(
       spacing: 10,
       runSpacing: 10,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        SizedBox(
-          width: 220,
-          child: Text(
-            title,
-            style: TextStyle(
-              color: text,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
         OutlinedButton(
           onPressed: onRefresh,
           child: const Icon(Icons.refresh_rounded, size: 20),
         ),
         FilledButton.icon(
-          onPressed: onPrimary,
+          onPressed: onAddRole,
           icon: const Icon(Icons.add_rounded),
-          label: Text(primaryLabel),
+          label: Text(lang.getText('addRole')),
         ),
       ],
     );
@@ -440,6 +482,7 @@ class _StatePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return Center(
       child: Container(
         width: double.infinity,
@@ -457,7 +500,7 @@ class _StatePanel extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Retry'),
+              label: Text(lang.getText('retry')),
             ),
           ],
         ),
@@ -472,6 +515,7 @@ Future<String?> _showRoleNameDialog(
   String? initialValue,
   List<String>? roleOptions,
 }) async {
+  final lang = context.read<LanguageProvider>();
   final controller = TextEditingController(text: initialValue ?? '');
   final formKey = GlobalKey<FormState>();
   final options = roleOptions == null
@@ -497,12 +541,12 @@ Future<String?> _showRoleNameDialog(
           child: options.isEmpty
               ? TextFormField(
                   controller: controller,
-                  decoration: const InputDecoration(
-                    labelText: 'Role name',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: lang.getText('role'),
+                    border: const OutlineInputBorder(),
                   ),
                   validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Role is required.'
+                      ? lang.getText('role')
                       : null,
                 )
               : DropdownButtonFormField<String>(
@@ -511,7 +555,7 @@ Future<String?> _showRoleNameDialog(
                       .map(
                         (role) => DropdownMenuItem<String>(
                           value: role,
-                          child: Text(role),
+                          child: Text(_localizedRoleDisplayName(role, lang)),
                         ),
                       )
                       .toList(),
@@ -519,20 +563,20 @@ Future<String?> _showRoleNameDialog(
                     if (value == null) return;
                     setDialogState(() => selectedRole = value);
                   },
-                  decoration: const InputDecoration(
-                    labelText: 'Role name',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: lang.getText('role'),
+                    border: const OutlineInputBorder(),
                   ),
                   validator: (value) =>
                       value == null || value.trim().isEmpty
-                          ? 'Role is required.'
+                          ? lang.getText('role')
                           : null,
                 ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(lang.getText('cancel')),
           ),
           FilledButton(
             onPressed: () {
@@ -542,7 +586,7 @@ Future<String?> _showRoleNameDialog(
                 options.isEmpty ? controller.text.trim() : selectedRole,
               );
             },
-            child: const Text('Save'),
+            child: Text(lang.getText('save')),
           ),
         ],
       ),

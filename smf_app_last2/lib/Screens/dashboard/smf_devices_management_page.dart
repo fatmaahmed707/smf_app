@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/smf_device.dart';
+import '../../providers/language_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/smf_devices_service.dart';
+import '../../utils/navigation_helper.dart';
 
 class SmfDevicesManagementPage extends StatefulWidget {
   final bool showAppBar;
@@ -58,7 +61,8 @@ class _SmfDevicesManagementPageState extends State<SmfDevicesManagementPage> {
         return;
       }
       setState(() {
-        _errorMessage = 'Failed to load SMF devices.';
+        _errorMessage =
+            context.read<LanguageProvider>().getText('failedToLoadSmfDevices');
         _isLoading = false;
       });
     }
@@ -67,8 +71,8 @@ class _SmfDevicesManagementPageState extends State<SmfDevicesManagementPage> {
   Future<void> _createDevice() async {
     await _showSmfDeviceFormDialog(
       context,
-      title: 'Add SMF Device',
-      submitLabel: 'Create',
+      title: context.read<LanguageProvider>().getText('addSmfDevice'),
+      submitLabel: context.read<LanguageProvider>().getText('create'),
       onSubmit: ({
         required String macAddress,
         required String label,
@@ -95,7 +99,9 @@ class _SmfDevicesManagementPageState extends State<SmfDevicesManagementPage> {
         context: context,
         builder: (context) => AlertDialog(
           title:
-              Text(details.label.trim().isEmpty ? 'SMF Device' : details.label),
+              Text(details.label.trim().isEmpty
+                  ? context.read<LanguageProvider>().getText('smfDevice')
+                  : details.label),
           content: SizedBox(
             width: 420,
             child: SingleChildScrollView(
@@ -106,31 +112,45 @@ class _SmfDevicesManagementPageState extends State<SmfDevicesManagementPage> {
                   _DeviceStatusHeader(device: details),
                   const SizedBox(height: 18),
                   _DetailLine(
-                      label: 'Label',
+                      label: context.read<LanguageProvider>().getText('label'),
                       value: details.label.trim().isEmpty
-                          ? 'Unlabeled'
+                          ? context.read<LanguageProvider>().getText('unlabeled')
                           : details.label),
                   _DetailLine(
-                    label: 'Registration',
+                    label:
+                        context.read<LanguageProvider>().getText('registration'),
                     value: details.isRegistered
-                        ? 'Registered and trusted'
-                        : 'Waiting for registration',
+                        ? context
+                            .read<LanguageProvider>()
+                            .getText('registeredTrusted')
+                        : context
+                            .read<LanguageProvider>()
+                            .getText('waitingForRegistration'),
                   ),
                   _DetailLine(
-                    label: 'Created',
+                    label: context.read<LanguageProvider>().getText('created'),
                     value: details.createdAt == null
-                        ? 'Unavailable'
+                        ? context.read<LanguageProvider>().getText('unavailable')
                         : _formatDate(details.createdAt!),
                   ),
                   const Divider(height: 28),
                   ExpansionTile(
                     tilePadding: EdgeInsets.zero,
                     childrenPadding: EdgeInsets.zero,
-                    title: const Text('Technical details'),
+                    title: Text(context
+                        .read<LanguageProvider>()
+                        .getText('technicalDetails')),
                     children: [
                       _DetailLine(
-                          label: 'MAC address', value: details.macAddress),
-                      _DetailLine(label: 'Internal ID', value: details.id),
+                          label: context
+                              .read<LanguageProvider>()
+                              .getText('macAddress'),
+                          value: details.macAddress),
+                      _DetailLine(
+                          label: context
+                              .read<LanguageProvider>()
+                              .getText('internalId'),
+                          value: details.id),
                     ],
                   ),
                 ],
@@ -140,7 +160,7 @@ class _SmfDevicesManagementPageState extends State<SmfDevicesManagementPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              child: Text(context.read<LanguageProvider>().getText('close')),
             ),
           ],
         ),
@@ -165,16 +185,20 @@ class _SmfDevicesManagementPageState extends State<SmfDevicesManagementPage> {
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Delete SMF device?'),
-            content: Text('This will delete ${device.label}.'),
+            title:
+                Text(context.read<LanguageProvider>().getText('deleteSmfDeviceQuestion')),
+            content: Text(context
+                .read<LanguageProvider>()
+                .getText('willDeleteItem')
+                .replaceAll('{name}', device.label)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text(context.read<LanguageProvider>().getText('cancel')),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete'),
+                child: Text(context.read<LanguageProvider>().getText('delete')),
               ),
             ],
           ),
@@ -191,7 +215,10 @@ class _SmfDevicesManagementPageState extends State<SmfDevicesManagementPage> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('SMF device deleted successfully.')),
+        SnackBar(
+          content:
+              Text(context.read<LanguageProvider>().getText('deviceDeleted')),
+        ),
       );
       await _load();
     } on ApiException catch (error) {
@@ -222,8 +249,10 @@ class _SmfDevicesManagementPageState extends State<SmfDevicesManagementPage> {
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('SMF Devices'),
+        leading: AppBackButton(
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+        title: Text(context.watch<LanguageProvider>().getText('smfDevices')),
         actions: [
           IconButton(
             onPressed: _isLoading ? null : _load,
@@ -250,6 +279,7 @@ Future<void> _showSmfDeviceFormDialog(
     required String secret,
   }) onSubmit,
 }) async {
+  final lang = context.read<LanguageProvider>();
   final macController = TextEditingController();
   final labelController = TextEditingController();
   final secretController = TextEditingController();
@@ -268,34 +298,34 @@ Future<void> _showSmfDeviceFormDialog(
             children: [
               TextFormField(
                 controller: macController,
-                decoration: const InputDecoration(
-                  labelText: 'MAC Address',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: lang.getText('macAddress'),
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (value) => value == null || value.trim().isEmpty
-                    ? 'MAC address is required.'
+                    ? lang.getText('macRequired')
                     : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: labelController,
-                decoration: const InputDecoration(
-                  labelText: 'Label',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: lang.getText('label'),
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Label is required.'
+                    ? lang.getText('labelRequired')
                     : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: secretController,
-                decoration: const InputDecoration(
-                  labelText: 'Secret',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: lang.getText('secret'),
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Secret is required.'
+                    ? lang.getText('secretRequired')
                     : null,
               ),
             ],
@@ -305,7 +335,7 @@ Future<void> _showSmfDeviceFormDialog(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(lang.getText('cancel')),
         ),
         FilledButton(
           onPressed: () async {
@@ -341,6 +371,7 @@ class _DeviceStatusHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     final color = device.isRegistered ? Colors.green : Colors.orange;
     return Container(
       padding: const EdgeInsets.all(14),
@@ -361,8 +392,8 @@ class _DeviceStatusHeader extends StatelessWidget {
           Expanded(
             child: Text(
               device.isRegistered
-                  ? 'Trusted factory device'
-                  : 'Device is not registered yet',
+                  ? lang.getText('trustedFactoryDevice')
+                  : lang.getText('deviceNotRegistered'),
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.w800,
@@ -386,6 +417,7 @@ class _DetailLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
@@ -404,7 +436,7 @@ class _DetailLine extends StatelessWidget {
           ),
           Expanded(
             child: SelectableText(
-              value.isEmpty ? 'Unavailable' : value,
+              value.isEmpty ? lang.getText('unavailable') : value,
               style: TextStyle(
                 color: isDark ? Colors.white : Colors.black87,
                 fontWeight: FontWeight.w600,
@@ -439,6 +471,7 @@ class _SmfDevicesConsole extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _DeviceConsolePalette.of(context);
+    final lang = context.watch<LanguageProvider>();
     return Container(
       color: palette.pageTint,
       child: Padding(
@@ -466,7 +499,7 @@ class _SmfDevicesConsole extends StatelessWidget {
                   builder: (context, constraints) {
                     final compact = constraints.maxWidth < 640;
                     final title = Text(
-                      'Devices List',
+                      lang.getText('devicesList'),
                       style: TextStyle(
                         color: palette.textPrimary,
                         fontSize: 22,
@@ -478,14 +511,14 @@ class _SmfDevicesConsole extends StatelessWidget {
                       runSpacing: 10,
                       children: [
                         _ConsoleButton(
-                          label: 'Refresh',
+                          label: lang.getText('refresh'),
                           icon: Icons.refresh_rounded,
                           onPressed: onRefresh,
                           filled: false,
                           palette: palette,
                         ),
                         _ConsoleButton(
-                          label: 'Add Device',
+                          label: lang.getText('addDevice'),
                           icon: Icons.add_rounded,
                           onPressed: onAdd,
                           filled: true,
@@ -548,7 +581,9 @@ class _SmfDevicesConsole extends StatelessWidget {
                   child: devices.isEmpty
                       ? Center(
                           child: Text(
-                            'No SMF devices found.',
+                            context
+                                .watch<LanguageProvider>()
+                                .getText('noSmfDevices'),
                             style: TextStyle(
                               color: palette.textMuted,
                               fontWeight: FontWeight.w700,
@@ -586,19 +621,20 @@ class _DeviceTableHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return Container(
       height: 56,
       color: palette.header,
       padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Row(
         children: [
-          _HeaderCell('DEVICE', width: 260, palette: palette),
-          _HeaderCell('MAC ADDRESS', width: 210, palette: palette),
-          _HeaderCell('STATUS', width: 190, palette: palette),
-          _HeaderCell('LOCATION / ZONE', width: 230, palette: palette),
-          _HeaderCell('LAST SEEN', width: 220, palette: palette),
-          _HeaderCell('SIGNAL', width: 150, palette: palette),
-          _HeaderCell('ACTIONS', width: 320, palette: palette),
+          _HeaderCell(lang.getText('device'), width: 260, palette: palette),
+          _HeaderCell(lang.getText('macAddress'), width: 210, palette: palette),
+          _HeaderCell(lang.getText('status'), width: 190, palette: palette),
+          _HeaderCell(lang.getText('locationZone'), width: 230, palette: palette),
+          _HeaderCell(lang.getText('lastSeen'), width: 220, palette: palette),
+          _HeaderCell(lang.getText('signal'), width: 150, palette: palette),
+          _HeaderCell(lang.getText('actions'), width: 320, palette: palette),
         ],
       ),
     );
@@ -718,8 +754,9 @@ class _DeviceTableRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     final accent = _accentFor(index);
-    final type = _typeFor(device.label, index);
+    final type = _typeFor(context, device.label, index);
     final signal = _signalFor(index);
 
     return Container(
@@ -755,7 +792,7 @@ class _DeviceTableRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _displayLabel(device, index),
+                        _displayLabel(context, device, index),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -792,7 +829,7 @@ class _DeviceTableRow extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    _zoneFor(index),
+                    _zoneFor(context, index),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -812,7 +849,7 @@ class _DeviceTableRow extends StatelessWidget {
                     color: palette.textPrimary, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  _lastSeen(device, index),
+                  _lastSeen(context, device, index),
                   style: TextStyle(
                     color: palette.textPrimary,
                     fontWeight: FontWeight.w700,
@@ -826,35 +863,34 @@ class _DeviceTableRow extends StatelessWidget {
             child: _SignalBars(value: signal, palette: palette),
           ),
           SizedBox(
-            width: 280,
+            width: 320,
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _ActionButton(
-                  label: 'Details',
+                  label: lang.getText('details'),
                   icon: Icons.visibility_outlined,
                   color: const Color(0xFF168BFF),
                   onPressed: () => onDetails(device),
                   palette: palette,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _ActionButton(
-                  label: 'Edit',
+                  label: lang.getText('edit'),
                   icon: Icons.edit_rounded,
                   color: const Color(0xFF168BFF),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                            'Edit is not available for this device API yet.'),
+                      SnackBar(
+                        content: Text(lang.getText('editDeviceUnavailable')),
                       ),
                     );
                   },
                   palette: palette,
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _ActionButton(
-                  label: 'Delete',
+                  label: lang.getText('delete'),
                   icon: Icons.delete_outline_rounded,
                   color: const Color(0xFFFF3B43),
                   onPressed: () => onDelete(device),
@@ -868,9 +904,12 @@ class _DeviceTableRow extends StatelessWidget {
     );
   }
 
-  static String _displayLabel(SmfDevice device, int index) {
-    if (device.label.trim().isNotEmpty) {
-      return device.label.trim();
+  static String _displayLabel(BuildContext context, SmfDevice device, int index) {
+    final lang = context.read<LanguageProvider>();
+    final label = device.label.trim();
+    if (label.isNotEmpty) {
+      if (label.toLowerCase() == 'smf device') return lang.getText('smfDevice');
+      return label;
     }
     return 'SMF-DEVICE-${(index + 1).toString().padLeft(2, '0')}';
   }
@@ -885,23 +924,30 @@ class _DeviceTableRow extends StatelessWidget {
     return colors[index % colors.length];
   }
 
-  static String _typeFor(String label, int index) {
+  static String _typeFor(BuildContext context, String label, int index) {
+    final lang = context.read<LanguageProvider>();
     final lower = label.toLowerCase();
-    if (lower.contains('gateway')) return 'Gateway';
-    if (lower.contains('sensor')) return 'Sensor';
-    if (lower.contains('camera')) return 'Camera';
-    if (lower.contains('lock')) return 'Door Lock';
-    const types = ['Gateway', 'Sensor', 'Camera', 'Door Lock'];
+    if (lower.contains('gateway')) return lang.getText('gateway');
+    if (lower.contains('sensor')) return lang.getText('sensor');
+    if (lower.contains('camera')) return lang.getText('camera');
+    if (lower.contains('lock')) return lang.getText('doorLock');
+    final types = [
+      lang.getText('gateway'),
+      lang.getText('sensor'),
+      lang.getText('camera'),
+      lang.getText('doorLock'),
+    ];
     return types[index % types.length];
   }
 
-  static String _zoneFor(int index) {
-    const zones = [
-      'Factory Zone A',
-      'Factory Zone B',
-      'Factory Zone C',
-      'Main Entrance',
-      'Production Floor',
+  static String _zoneFor(BuildContext context, int index) {
+    final lang = context.read<LanguageProvider>();
+    final zones = [
+      lang.getText('factoryZoneA'),
+      lang.getText('factoryZoneB'),
+      lang.getText('factoryZoneC'),
+      lang.getText('mainEntrance'),
+      lang.getText('productionFloor'),
     ];
     return zones[index % zones.length];
   }
@@ -911,22 +957,47 @@ class _DeviceTableRow extends StatelessWidget {
     return signals[index % signals.length];
   }
 
-  static String _lastSeen(SmfDevice device, int index) {
+  static String _lastSeen(BuildContext context, SmfDevice device, int index) {
+    final lang = context.read<LanguageProvider>();
     if (device.createdAt == null) {
-      const fallback = [
-        'Today, 08:42 AM',
-        'Today, 07:15 AM',
-        'Yesterday, 11:32 PM',
-        'Yesterday, 09:20 PM',
+      final fallback = [
+        '${lang.getText('today')}, ${_localizedWeekday(lang, DateTime.now().weekday)} 08:42',
+        '${lang.getText('today')}, ${_localizedWeekday(lang, DateTime.now().weekday)} 07:15',
+        '${lang.getText('yesterday')}, 23:32',
+        '${lang.getText('yesterday')}, 21:20',
       ];
       return fallback[index % fallback.length];
     }
 
     final local = device.createdAt!.toLocal();
-    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
-    final suffix = local.hour >= 12 ? 'PM' : 'AM';
-    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}, $hour:$minute $suffix';
+    return '${_localizedWeekday(lang, local.weekday)}, ${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')} $hour:$minute';
+  }
+
+  static String _localizedWeekday(LanguageProvider lang, int weekday) {
+    if (lang.isArabic) {
+      const days = [
+        'الاثنين',
+        'الثلاثاء',
+        'الأربعاء',
+        'الخميس',
+        'الجمعة',
+        'السبت',
+        'الأحد',
+      ];
+      return days[weekday - 1];
+    }
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    return days[weekday - 1];
   }
 }
 
@@ -965,6 +1036,7 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     final color =
         registered ? const Color(0xFF19D389) : const Color(0xFFFFB21A);
     return Container(
@@ -989,7 +1061,7 @@ class _StatusPill extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Text(
-            registered ? 'Registered' : 'Pending',
+            registered ? lang.getText('registered') : lang.getText('pending'),
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w900,
@@ -1130,9 +1202,10 @@ class _ActionButton extends StatelessWidget {
         foregroundColor: color,
         backgroundColor: palette.actionBackground,
         side: BorderSide(color: color.withValues(alpha: 0.62)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        minimumSize: const Size(0, 42),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w900),
+        textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui';
+import '../../providers/language_provider.dart';
 import '../../theme/app_theme.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -131,6 +132,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
   }
 
   Widget _buildSuccessView(bool isDarkMode) {
+    final lang = context.watch<LanguageProvider>();
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -165,8 +167,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
           shaderCallback: (bounds) => const LinearGradient(
             colors: [Color(0xFF00D9FF), Color(0xFF8B5CF6)],
           ).createShader(bounds),
-          child: const Text(
-            'Check Your Email',
+          child: Text(
+            lang.getText('checkYourEmail'),
             style: TextStyle(
               color: Colors.white,
               fontSize: 32,
@@ -176,7 +178,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
         ),
         const SizedBox(height: 16),
         Text(
-          'We sent a password reset link to',
+          lang.getText('resetEmailSent'),
           textAlign: TextAlign.center,
           style: TextStyle(
             color: isDarkMode
@@ -221,8 +223,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: const Text(
-              'Back to Login',
+            child: Text(
+              lang.getText('backToLogin'),
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
@@ -235,7 +237,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
         TextButton(
           onPressed: _handleResetPassword,
           child: Text(
-            'Didn\'t receive the email? Resend',
+            lang.getText('resendEmail'),
             style: TextStyle(
               color: isDarkMode
                   ? Colors.white.withOpacity(0.7)
@@ -278,12 +280,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
   }
 
   Widget _buildTitle(bool isDarkMode) {
+    final lang = context.watch<LanguageProvider>();
     return ShaderMask(
       shaderCallback: (bounds) => const LinearGradient(
         colors: [Color(0xFF00D9FF), Color(0xFF8B5CF6)],
       ).createShader(bounds),
-      child: const Text(
-        'Forgot Password?',
+      child: Text(
+        lang.getText('forgotPasswordTitle'),
         style: TextStyle(
           color: Colors.white,
           fontSize: 32,
@@ -294,8 +297,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
   }
 
   Widget _buildDescription(bool isDarkMode) {
+    final lang = context.watch<LanguageProvider>();
     return Text(
-      'Don\'t worry! Enter your email address and we\'ll send you a link to reset your password.',
+      lang.getText('forgotPasswordSubtitle'),
       textAlign: TextAlign.center,
       style: TextStyle(
         color: isDarkMode
@@ -375,6 +379,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
   }
 
   Widget _buildEmailField(bool isDarkMode) {
+    final lang = context.watch<LanguageProvider>();
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
@@ -404,7 +409,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
           fontSize: 15,
         ),
         decoration: InputDecoration(
-          hintText: 'Enter your email',
+          hintText: lang.getText('emailHint'),
           hintStyle: TextStyle(
             color: isDarkMode
                 ? Colors.white.withOpacity(0.3)
@@ -425,8 +430,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
           ),
         ),
         validator: (value) {
-          if (value == null || value.isEmpty) return 'Email is required';
-          if (!value.contains('@')) return 'Enter a valid email';
+          if (value == null || value.isEmpty) return lang.getText('emailRequired');
+          if (!value.contains('@')) return lang.getText('emailInvalid');
           return null;
         },
       ),
@@ -434,6 +439,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
   }
 
   Widget _buildResetButton() {
+    final lang = context.watch<LanguageProvider>();
     return Container(
       width: double.infinity,
       height: 56,
@@ -468,8 +474,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage>
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-            : const Text(
-                'Send Reset Link',
+            : Text(
+                lang.getText('sendResetLink'),
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,

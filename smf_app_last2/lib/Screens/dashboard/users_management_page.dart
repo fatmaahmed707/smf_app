@@ -1,10 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/role_summary.dart';
 import '../../models/user.dart';
+import '../../providers/language_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/roles_service.dart';
 import '../../services/users_service.dart';
+
+String _localizedUserRole(String value, LanguageProvider lang) {
+  switch (value.trim().replaceFirst(RegExp(r'^ROLE_'), '').toUpperCase()) {
+    case 'ADMIN':
+      return lang.getText('roleAdmin');
+    case 'ENGINEER':
+      return lang.getText('roleEngineer');
+    case 'MANAGER':
+      return lang.getText('roleManager');
+    case 'WORKER':
+      return lang.getText('roleWorker');
+    case 'USER':
+      return lang.getText('roleUser');
+    default:
+      return value;
+  }
+}
 
 class UsersManagementPage extends StatefulWidget {
   const UsersManagementPage({super.key});
@@ -22,6 +41,9 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
   List<RoleSummary> _roles = const [];
   String? _errorMessage;
   String _searchQuery = '';
+  int _currentPage = 1;
+
+  static const int _usersPerPage = 10;
 
   @override
   void initState() {
@@ -63,7 +85,8 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
         return;
       }
       setState(() {
-        _errorMessage = 'Failed to load users.';
+        _errorMessage =
+            context.read<LanguageProvider>().getText('failedToLoadUsers');
         _isLoading = false;
       });
     }
@@ -73,8 +96,8 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     await _showUserFormDialog(
       context,
       roles: _roles,
-      title: 'Create User',
-      submitLabel: 'Create',
+      title: context.read<LanguageProvider>().getText('createUser'),
+      submitLabel: context.read<LanguageProvider>().getText('create'),
       onSubmit: ({
         required String username,
         required String email,
@@ -97,8 +120,8 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
     await _showUserFormDialog(
       context,
       roles: _roles,
-      title: 'Update User',
-      submitLabel: 'Save',
+      title: context.read<LanguageProvider>().getText('updateUser'),
+      submitLabel: context.read<LanguageProvider>().getText('save'),
       initialUsername: user.name,
       initialEmail: user.email,
       initialRole: user.role,
@@ -122,19 +145,22 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
   }
 
   Future<void> _deleteUser(User user) async {
+    final lang = context.read<LanguageProvider>();
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Delete user?'),
-            content: Text('This will delete ${user.name}.'),
+            title: Text(lang.getText('deleteUserQuestion')),
+            content: Text(
+              lang.getText('willDeleteItem').replaceAll('{name}', user.name),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text(lang.getText('cancel')),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete'),
+                child: Text(lang.getText('delete')),
               ),
             ],
           ),
@@ -151,7 +177,7 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User deleted successfully.')),
+        SnackBar(content: Text(lang.getText('userDeleted'))),
       );
       await _load();
     } on ApiException catch (error) {
@@ -165,6 +191,7 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
   }
 
   Future<void> _showDetails(User user) async {
+    final lang = context.read<LanguageProvider>();
     try {
       final details = await _usersService.getUser(user.id);
       if (!mounted) {
@@ -178,16 +205,18 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('ID: ${details.id}'),
-              Text('Email: ${details.email}'),
-              Text('Role: ${details.role ?? '-'}'),
-              Text('Provider: ${details.provider ?? '-'}'),
+              Text('${lang.getText('id')}: ${details.id}'),
+              Text('${lang.getText('emailLabel')}: ${details.email}'),
+              Text(
+                '${lang.getText('role')}: ${_localizedUserRole(details.role ?? '-', lang)}',
+              ),
+              Text('${lang.getText('provider')}: ${details.provider ?? '-'}'),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              child: Text(lang.getText('close')),
             ),
           ],
         ),
@@ -212,13 +241,32 @@ class _UsersManagementPageState extends State<UsersManagementPage> {
           (user.role ?? '').toLowerCase().contains(query);
     }).toList();
 
+    final calculatedTotalPages = (filteredUsers.length / _usersPerPage).ceil();
+    final totalPages = calculatedTotalPages < 1 ? 1 : calculatedTotalPages;
+    final currentPage = _currentPage < 1
+        ? 1
+        : _currentPage > totalPages
+            ? totalPages
+            : _currentPage;
+    final startIndex = (currentPage - 1) * _usersPerPage;
+    final visibleUsers = filteredUsers
+        .skip(startIndex)
+        .take(_usersPerPage)
+        .toList();
+
     return _UsersConsole(
-      users: filteredUsers,
+      users: visibleUsers,
       totalUsers: _users.length,
+      currentPage: currentPage,
+      totalPages: totalPages,
       isLoading: _isLoading,
       errorMessage: _errorMessage,
       searchQuery: _searchQuery,
-      onSearchChanged: (value) => setState(() => _searchQuery = value),
+      onSearchChanged: (value) => setState(() {
+        _searchQuery = value;
+        _currentPage = 1;
+      }),
+      onPageChanged: (page) => setState(() => _currentPage = page),
       onRefresh: _isLoading ? null : _load,
       onAdd: _isLoading ? null : _showCreateDialog,
       onDetails: _showDetails,
@@ -243,6 +291,7 @@ Future<void> _showUserFormDialog(
   String? initialEmail,
   String? initialRole,
 }) async {
+  final lang = context.read<LanguageProvider>();
   final usernameController = TextEditingController(text: initialUsername ?? '');
   final emailController = TextEditingController(text: initialEmail ?? '');
   final passwordController = TextEditingController();
@@ -264,23 +313,23 @@ Future<void> _showUserFormDialog(
               children: [
                 TextFormField(
                   controller: usernameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Username',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: lang.getText('usernameLabel'),
+                    border: const OutlineInputBorder(),
                   ),
                   validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Username is required.'
+                      ? lang.getText('usernameRequired')
                       : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: lang.getText('emailLabel'),
+                    border: const OutlineInputBorder(),
                   ),
                   validator: (value) => value == null || !value.contains('@')
-                      ? 'Enter a valid email.'
+                      ? lang.getText('emailInvalid')
                       : null,
                 ),
                 const SizedBox(height: 12),
@@ -288,14 +337,14 @@ Future<void> _showUserFormDialog(
                   controller: passwordController,
                   decoration: InputDecoration(
                     labelText: initialUsername == null
-                        ? 'Password'
-                        : 'Password (optional)',
+                        ? lang.getText('passwordLabel')
+                        : lang.getText('passwordOptional'),
                     border: const OutlineInputBorder(),
                   ),
                   validator: (value) {
                     if (initialUsername == null &&
                         (value == null || value.isEmpty)) {
-                      return 'Password is required.';
+                      return lang.getText('passwordRequired');
                     }
                     return null;
                   },
@@ -307,7 +356,7 @@ Future<void> _showUserFormDialog(
                       .map(
                         (role) => DropdownMenuItem<String>(
                           value: role.roleName,
-                          child: Text(role.roleName),
+                          child: Text(_localizedUserRole(role.roleName, lang)),
                         ),
                       )
                       .toList(),
@@ -318,9 +367,9 @@ Future<void> _showUserFormDialog(
                       });
                     }
                   },
-                  decoration: const InputDecoration(
-                    labelText: 'Role',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: lang.getText('role'),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
               ],
@@ -330,7 +379,7 @@ Future<void> _showUserFormDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(lang.getText('cancel')),
           ),
           FilledButton(
             onPressed: () async {
@@ -364,10 +413,13 @@ Future<void> _showUserFormDialog(
 class _UsersConsole extends StatelessWidget {
   final List<User> users;
   final int totalUsers;
+  final int currentPage;
+  final int totalPages;
   final bool isLoading;
   final String? errorMessage;
   final String searchQuery;
   final ValueChanged<String> onSearchChanged;
+  final ValueChanged<int> onPageChanged;
   final VoidCallback? onRefresh;
   final VoidCallback? onAdd;
   final ValueChanged<User> onDetails;
@@ -377,10 +429,13 @@ class _UsersConsole extends StatelessWidget {
   const _UsersConsole({
     required this.users,
     required this.totalUsers,
+    required this.currentPage,
+    required this.totalPages,
     required this.isLoading,
     required this.errorMessage,
     required this.searchQuery,
     required this.onSearchChanged,
+    required this.onPageChanged,
     required this.onRefresh,
     required this.onAdd,
     required this.onDetails,
@@ -436,6 +491,9 @@ class _UsersConsole extends StatelessWidget {
               _UsersFooter(
                 palette: palette,
                 totalUsers: totalUsers,
+                currentPage: currentPage,
+                totalPages: totalPages,
+                onPageChanged: onPageChanged,
               ),
             ],
           ),
@@ -462,6 +520,7 @@ class _UsersToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 760;
@@ -474,7 +533,7 @@ class _UsersToolbar extends StatelessWidget {
             decoration: InputDecoration(
               prefixIcon: Icon(Icons.search_rounded,
                   color: palette.textMuted, size: 20),
-              hintText: 'Search users...',
+              hintText: lang.getText('searchUsers'),
               hintStyle: TextStyle(color: palette.textMuted),
               filled: true,
               fillColor: palette.control,
@@ -501,18 +560,13 @@ class _UsersToolbar extends StatelessWidget {
           children: [
             _IconSquareButton(
               palette: palette,
-              icon: Icons.filter_alt_outlined,
-              onPressed: () {},
-            ),
-            _IconSquareButton(
-              palette: palette,
               icon: Icons.refresh_rounded,
               onPressed: onRefresh,
             ),
             FilledButton.icon(
               onPressed: onAdd,
               icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
-              label: const Text('Add User'),
+              label: Text(lang.getText('addUser')),
               style: FilledButton.styleFrom(
                 backgroundColor: palette.blue,
                 foregroundColor: Colors.white,
@@ -532,7 +586,7 @@ class _UsersToolbar extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Users Management',
+                lang.getText('usersManagement'),
                 style: TextStyle(
                   color: palette.textPrimary,
                   fontSize: 20,
@@ -551,7 +605,7 @@ class _UsersToolbar extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                'Users Management',
+                lang.getText('usersManagement'),
                 style: TextStyle(
                   color: palette.textPrimary,
                   fontSize: 20,
@@ -586,6 +640,7 @@ class _UsersTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Container(
@@ -611,7 +666,7 @@ class _UsersTable extends StatelessWidget {
                           child: users.isEmpty
                               ? Center(
                                   child: Text(
-                                    'No users found.',
+                                    lang.getText('noUsersFound'),
                                     style: TextStyle(
                                       color: palette.textMuted,
                                       fontWeight: FontWeight.w700,
@@ -655,18 +710,19 @@ class _UsersTableHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return Container(
       height: 48,
       color: palette.header,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         children: [
-          _UsersHeaderCell('USER', width: 260, palette: palette),
-          _UsersHeaderCell('ROLE', width: 180, palette: palette),
-          _UsersHeaderCell('STATUS', width: 140, palette: palette),
-          _UsersHeaderCell('LAST ACTIVE', width: 210, palette: palette),
-          _UsersHeaderCell('EMAIL', width: 260, palette: palette),
-          _UsersHeaderCell('ACTIONS', width: 170, palette: palette),
+          _UsersHeaderCell(lang.getText('user'), width: 260, palette: palette),
+          _UsersHeaderCell(lang.getText('role'), width: 180, palette: palette),
+          _UsersHeaderCell(lang.getText('status'), width: 140, palette: palette),
+          _UsersHeaderCell(lang.getText('lastSeen'), width: 210, palette: palette),
+          _UsersHeaderCell(lang.getText('emailLabel'), width: 260, palette: palette),
+          _UsersHeaderCell(lang.getText('actions'), width: 170, palette: palette),
         ],
       ),
     );
@@ -719,6 +775,7 @@ class _UsersTableRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     final role = _normalizedRole(user);
     final accent = _roleColor(role);
     return Container(
@@ -743,7 +800,7 @@ class _UsersTableRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user.name.isEmpty ? 'User' : user.name,
+                        user.name.isEmpty ? lang.getText('user') : user.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -784,7 +841,7 @@ class _UsersTableRow extends StatelessWidget {
                     size: 15, color: palette.textMuted),
                 const SizedBox(width: 7),
                 Text(
-                  _lastActive(index),
+                  _lastActive(context, index),
                   style: TextStyle(
                     color: palette.textPrimary,
                     fontWeight: FontWeight.w700,
@@ -816,7 +873,7 @@ class _UsersTableRow extends StatelessWidget {
                   icon: Icons.visibility_outlined,
                   color: palette.blue,
                   palette: palette,
-                  tooltip: 'Details',
+                  tooltip: lang.getText('details'),
                   onPressed: () => onDetails(user),
                 ),
                 const SizedBox(width: 8),
@@ -824,7 +881,7 @@ class _UsersTableRow extends StatelessWidget {
                   icon: Icons.edit_rounded,
                   color: palette.blue,
                   palette: palette,
-                  tooltip: 'Edit',
+                  tooltip: lang.getText('edit'),
                   onPressed: () => onEdit(user),
                 ),
                 const SizedBox(width: 8),
@@ -832,7 +889,7 @@ class _UsersTableRow extends StatelessWidget {
                   icon: Icons.delete_outline_rounded,
                   color: const Color(0xFFFF3B43),
                   palette: palette,
-                  tooltip: 'Delete',
+                  tooltip: lang.getText('delete'),
                   onPressed: () => onDelete(user),
                 ),
               ],
@@ -867,12 +924,13 @@ class _UsersTableRow extends StatelessWidget {
     return const Color(0xFF168BFF);
   }
 
-  static String _lastActive(int index) {
-    const values = [
-      'Today, 08:42 AM',
-      'Today, 07:15 AM',
-      'Yesterday, 11:32 PM',
-      'Yesterday, 09:20 PM',
+  static String _lastActive(BuildContext context, int index) {
+    final lang = context.read<LanguageProvider>();
+    final values = [
+      '${lang.getText('today')}, 08:42 AM',
+      '${lang.getText('today')}, 07:15 AM',
+      '${lang.getText('yesterday')}, 11:32 PM',
+      '${lang.getText('yesterday')}, 09:20 PM',
       'May 20, 2025, 04:10 PM',
     ];
     return values[index % values.length];
@@ -932,6 +990,7 @@ class _RolePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return Container(
       constraints: const BoxConstraints(maxWidth: 118),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -947,7 +1006,7 @@ class _RolePill extends StatelessWidget {
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              role,
+              _localizedUserRole(role, lang),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -978,6 +1037,7 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     const green = Color(0xFF19D389);
     return Container(
       width: 72,
@@ -986,14 +1046,14 @@ class _StatusPill extends StatelessWidget {
         color: green.withValues(alpha: palette.isDark ? 0.17 : 0.10),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.circle, color: green, size: 7),
-          SizedBox(width: 5),
+          const Icon(Icons.circle, color: green, size: 7),
+          const SizedBox(width: 5),
           Text(
-            'Active',
-            style: TextStyle(
+            lang.getText('active'),
+            style: const TextStyle(
               color: green,
               fontSize: 11,
               fontWeight: FontWeight.w900,
@@ -1079,14 +1139,21 @@ class _IconSquareButton extends StatelessWidget {
 class _UsersFooter extends StatelessWidget {
   final _UsersPalette palette;
   final int totalUsers;
+  final int currentPage;
+  final int totalPages;
+  final ValueChanged<int> onPageChanged;
 
   const _UsersFooter({
     required this.palette,
     required this.totalUsers,
+    required this.currentPage,
+    required this.totalPages,
+    required this.onPageChanged,
   });
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 760;
@@ -1096,7 +1163,9 @@ class _UsersFooter extends StatelessWidget {
             Icon(Icons.groups_rounded, color: palette.blue, size: 16),
             const SizedBox(width: 8),
             Text(
-              'Total Users: $totalUsers',
+              lang
+                  .getText('totalUsers')
+                  .replaceAll('{count}', totalUsers.toString()),
               style: TextStyle(
                 color: palette.textPrimary,
                 fontWeight: FontWeight.w700,
@@ -1107,62 +1176,54 @@ class _UsersFooter extends StatelessWidget {
         final pager = Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _PageButton(icon: Icons.keyboard_double_arrow_left, palette: palette),
-            const SizedBox(width: 8),
-            _PageButton(icon: Icons.chevron_left_rounded, palette: palette),
-            const SizedBox(width: 8),
-            Container(
-              width: 40,
-              height: 34,
-              decoration: BoxDecoration(
-                color: palette.blue,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Center(
-                child: Text(
-                  '1',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
+            _PageButton(
+              icon: Icons.keyboard_double_arrow_left,
+              palette: palette,
+              onPressed:
+                  currentPage > 1 ? () => onPageChanged(1) : null,
             ),
             const SizedBox(width: 8),
-            _PageButton(icon: Icons.chevron_right_rounded, palette: palette),
+            _PageButton(
+              icon: Icons.chevron_left_rounded,
+              palette: palette,
+              onPressed: currentPage > 1
+                  ? () => onPageChanged(currentPage - 1)
+                  : null,
+            ),
+            ...List.generate(
+              totalPages,
+              (index) {
+                final page = index + 1;
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: _PageNumberButton(
+                    page: page,
+                    isSelected: page == currentPage,
+                    palette: palette,
+                    onPressed: page == currentPage
+                        ? null
+                        : () => onPageChanged(page),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 8),
+            _PageButton(
+              icon: Icons.chevron_right_rounded,
+              palette: palette,
+              onPressed: currentPage < totalPages
+                  ? () => onPageChanged(currentPage + 1)
+                  : null,
+            ),
             const SizedBox(width: 8),
             _PageButton(
               icon: Icons.keyboard_double_arrow_right,
               palette: palette,
+              onPressed: currentPage < totalPages
+                  ? () => onPageChanged(totalPages)
+                  : null,
             ),
           ],
-        );
-        final pageSize = Container(
-          height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: palette.control,
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(color: palette.tableBorder),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '10 / page',
-                style: TextStyle(
-                  color: palette.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: palette.textPrimary,
-                size: 18,
-              ),
-            ],
-          ),
         );
 
         if (compact) {
@@ -1171,7 +1232,7 @@ class _UsersFooter extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 18,
             runSpacing: 12,
-            children: [count, pager, pageSize],
+            children: [count, pager],
           );
         }
 
@@ -1180,7 +1241,6 @@ class _UsersFooter extends StatelessWidget {
           children: [
             Align(alignment: Alignment.centerLeft, child: count),
             pager,
-            Align(alignment: Alignment.centerRight, child: pageSize),
           ],
         );
       },
@@ -1188,11 +1248,54 @@ class _UsersFooter extends StatelessWidget {
   }
 }
 
+class _PageNumberButton extends StatelessWidget {
+  final int page;
+  final bool isSelected;
+  final _UsersPalette palette;
+  final VoidCallback? onPressed;
+
+  const _PageNumberButton({
+    required this.page,
+    required this.isSelected,
+    required this.palette,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 40,
+      height: 34,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: isSelected ? Colors.white : palette.textPrimary,
+          backgroundColor: isSelected ? palette.blue : palette.control,
+          padding: EdgeInsets.zero,
+          side: BorderSide(
+            color: isSelected ? palette.blue : palette.tableBorder,
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+        child: Text(
+          '$page',
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+      ),
+    );
+  }
+}
+
 class _PageButton extends StatelessWidget {
   final IconData icon;
   final _UsersPalette palette;
+  final VoidCallback? onPressed;
 
-  const _PageButton({required this.icon, required this.palette});
+  const _PageButton({
+    required this.icon,
+    required this.palette,
+    required this.onPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1200,12 +1303,18 @@ class _PageButton extends StatelessWidget {
       width: 34,
       height: 34,
       child: OutlinedButton(
-        onPressed: () {},
+        onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          foregroundColor: palette.textPrimary,
+          foregroundColor: onPressed == null
+              ? palette.textMuted.withOpacity(0.45)
+              : palette.textPrimary,
           backgroundColor: palette.control,
           padding: EdgeInsets.zero,
-          side: BorderSide(color: palette.tableBorder),
+          side: BorderSide(
+            color: onPressed == null
+                ? palette.tableBorder.withOpacity(0.55)
+                : palette.tableBorder,
+          ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
         child: Icon(icon, size: 18),

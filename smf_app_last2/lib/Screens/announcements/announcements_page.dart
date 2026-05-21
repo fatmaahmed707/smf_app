@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/language_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/navigation_helper.dart';
 import 'announcement_model.dart';
 
 class AnnouncementsPage extends StatefulWidget {
@@ -122,12 +123,170 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
     });
   }
 
+  Future<void> _openAnnouncementActions(_AnnouncementEntry entry) async {
+    final lang = context.read<LanguageProvider>();
+    final titleController = TextEditingController(text: entry.model.title);
+    final messageController = TextEditingController(text: entry.model.message);
+    var priority = _priorityFromLabel(entry.model.priority);
+
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(lang.getText('editAnnouncement')),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    labelText: lang.getText('title'),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: messageController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    labelText: lang.getText('message'),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<_AnnouncementPriority>(
+                  initialValue: priority,
+                  decoration: InputDecoration(
+                    labelText: lang.getText('priority'),
+                    border: OutlineInputBorder(),
+                  ),
+                  items: _AnnouncementPriority.values
+                      .map(
+                        (item) => DropdownMenuItem(
+                          value: item,
+                          child: Text(_localizedPriority(item.label)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setDialogState(() => priority = value);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton.icon(
+              onPressed: () => Navigator.pop(context, 'delete'),
+              icon: const Icon(Icons.delete_outline_rounded),
+              label: Text(lang.getText('delete')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(lang.getText('cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, 'save'),
+              child: Text(lang.getText('save')),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    if (action == 'delete') {
+      setState(() => _announcements.remove(entry));
+    } else if (action == 'save') {
+      final title = titleController.text.trim();
+      final message = messageController.text.trim();
+      if (title.isEmpty || message.isEmpty) return;
+      setState(() {
+        final index = _announcements.indexOf(entry);
+        if (index == -1) return;
+        _announcements[index] = _AnnouncementEntry(
+          model: AnnouncementModel(
+            title: title,
+            message: message,
+            priority: priority.label,
+            sender: entry.model.sender,
+            timestamp: entry.model.timestamp,
+          ),
+          scheduled: entry.scheduled,
+          visual: entry.visual,
+        );
+      });
+    }
+
+    titleController.dispose();
+    messageController.dispose();
+  }
+
+  _AnnouncementPriority _priorityFromLabel(String label) {
+    return _AnnouncementPriority.values.firstWhere(
+      (priority) => priority.label.toLowerCase() == label.toLowerCase(),
+      orElse: () => _AnnouncementPriority.medium,
+    );
+  }
+
+  String _localizedAnnouncementTitle(_AnnouncementEntry entry) {
+    final lang = context.read<LanguageProvider>();
+    final title = entry.model.title.toLowerCase();
+    if (title.contains('security update')) {
+      return lang.getText('securityUpdateAvailable');
+    }
+    if (title.contains('worker #21')) return lang.getText('workerEnteredZone');
+    if (title.contains('sos')) return lang.getText('sosButtonPressed');
+    if (title.contains('device #45')) return lang.getText('deviceConnected');
+    return entry.model.title;
+  }
+
+  String _localizedAnnouncementMessage(_AnnouncementEntry entry) {
+    final lang = context.read<LanguageProvider>();
+    final message = entry.model.message.toLowerCase();
+    if (message.contains('firmware')) return lang.getText('firmwareReady');
+    if (message.contains('location updated')) {
+      return lang.getText('locationUpdatedNormal');
+    }
+    if (message.contains('immediate attention')) {
+      return lang.getText('workerAttentionRequired');
+    }
+    if (message.contains('new device')) return lang.getText('newDeviceSynced');
+    return entry.model.message;
+  }
+
+  String _localizedPriority(String priority) {
+    final lang = context.read<LanguageProvider>();
+    switch (priority.toLowerCase()) {
+      case 'high':
+        return lang.getText('high');
+      case 'medium':
+        return lang.getText('medium');
+      case 'low':
+        return lang.getText('low');
+      case 'info':
+        return lang.getText('info');
+      default:
+        return priority;
+    }
+  }
+
   String _timeAgo(DateTime timestamp) {
+    final lang = context.read<LanguageProvider>();
     final diff = DateTime.now().difference(timestamp);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-    if (diff.inHours < 24) return '${diff.inHours} hr ago';
-    return '${diff.inDays} day ago';
+    if (diff.inMinutes < 1) return lang.getText('justNow');
+    if (diff.inMinutes < 60) {
+      return lang.getText('minutesAgo').replaceAll(
+            '{count}',
+            diff.inMinutes.toString(),
+          );
+    }
+    if (diff.inHours < 24) return '${diff.inHours} h';
+    return '${diff.inDays} d';
   }
 
   @override
@@ -211,7 +370,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
       ),
     );
 
-    return Directionality(
+    final page = Directionality(
       textDirection:
           languageProvider.isArabic ? TextDirection.rtl : TextDirection.ltr,
       child: widget.embedded
@@ -220,6 +379,13 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
               backgroundColor: palette.background,
               body: SafeArea(child: content),
             ),
+    );
+
+    if (widget.embedded) return page;
+
+    return WillPopScope(
+      onWillPop: () => AppNavigation.handleSystemBack(context),
+      child: page,
     );
   }
 
@@ -231,13 +397,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
     return Row(
       children: [
         IconButton(
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Navigator.pushReplacementNamed(context, '/dashboard');
-            }
-          },
+          onPressed: () => AppNavigation.goBack(context),
           icon: Icon(
             Icons.close_rounded,
             color: palette.textMuted,
@@ -264,7 +424,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(8),
-                child: Image.asset('assets/images/logo.png'),
+                child: Image.asset('assets/images/logo_smf_clear.png'),
               ),
             ),
             const SizedBox(width: 12),
@@ -280,7 +440,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                   ),
                 ),
                 Text(
-                  'Security Monitoring',
+                  languageProvider.getText('smfProjectName'),
                   style: TextStyle(
                     color: palette.textMuted,
                     fontSize: 13,
@@ -304,7 +464,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
               Icon(Icons.lock, color: palette.gold, size: 16),
               const SizedBox(width: 10),
               Text(
-                'Your safety is our priority',
+                languageProvider.getText('safetyPriority'),
                 style: TextStyle(
                   color: palette.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -447,6 +607,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
   }
 
   Widget _leftPanel(_AnnouncementsPalette palette, {required bool fillHeight}) {
+    final lang = context.watch<LanguageProvider>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -477,7 +638,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Announcements',
+                    lang.getText('announcements'),
                     style: TextStyle(
                       color: palette.textPrimary,
                       fontSize: 36,
@@ -486,7 +647,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Manage and send important updates to your team',
+                    lang.getText('announcementSubtitle'),
                     style: TextStyle(
                       color: palette.textMuted,
                       fontSize: 17,
@@ -515,7 +676,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                 decoration: InputDecoration(
                   prefixIcon: Icon(Icons.search, color: palette.textMuted),
                   border: InputBorder.none,
-                  hintText: 'Search announcements...',
+                  hintText: lang.getText('searchAnnouncements'),
                   hintStyle: TextStyle(color: palette.textMuted),
                   contentPadding: const EdgeInsets.symmetric(vertical: 16),
                 ),
@@ -526,7 +687,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
               runSpacing: 12,
               children: [
                 _filterTab(
-                  label: 'All Announcements',
+                  label: lang.getText('allAnnouncements'),
                   count: _announcements.length,
                   active: _activeFilter == _AnnouncementFilter.all,
                   onTap: () =>
@@ -534,7 +695,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                   palette: palette,
                 ),
                 _filterTab(
-                  label: 'Scheduled',
+                  label: lang.getText('scheduled'),
                   count: _scheduledCount,
                   active: _activeFilter == _AnnouncementFilter.scheduled,
                   onTap: () => setState(
@@ -583,31 +744,6 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                'Recent Announcements',
-                style: TextStyle(
-                  color: palette.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const Spacer(),
-              TextButton.icon(
-                onPressed: () {},
-                icon: Icon(
-                  Icons.filter_list_rounded,
-                  color: palette.textMuted,
-                ),
-                label: Text(
-                  'Filter',
-                  style: TextStyle(color: palette.textMuted),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
           Expanded(
             child: ListView.separated(
               itemCount: _filteredAnnouncements.length,
@@ -617,104 +753,108 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                 final badge = _priorityStyle(entry.model.priority, palette);
                 final icon = _visualStyle(entry.visual, palette);
 
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.035),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: palette.borderSoft),
-                    boxShadow: [
-                      BoxShadow(
-                        color: palette.glow.withOpacity(0.04),
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(
-                            colors: [
-                              icon.color.withOpacity(0.24),
-                              icon.color.withOpacity(0.08),
+                return InkWell(
+                  onTap: () => _openAnnouncementActions(entry),
+                  borderRadius: BorderRadius.circular(18),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.035),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: palette.borderSoft),
+                      boxShadow: [
+                        BoxShadow(
+                          color: palette.glow.withOpacity(0.04),
+                          blurRadius: 6,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 58,
+                          height: 58,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(
+                              colors: [
+                                icon.color.withOpacity(0.24),
+                                icon.color.withOpacity(0.08),
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: icon.color.withOpacity(0.35),
+                                blurRadius: 22,
+                              ),
                             ],
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: icon.color.withOpacity(0.35),
-                              blurRadius: 22,
-                            ),
-                          ],
+                          child: Icon(icon.icon, color: icon.color, size: 28),
                         ),
-                        child: Icon(icon.icon, color: icon.color, size: 28),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _localizedAnnouncementTitle(entry),
+                                style: TextStyle(
+                                  color: palette.textPrimary,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _localizedAnnouncementMessage(entry),
+                                style: TextStyle(
+                                  color: palette.textMuted,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(
-                              entry.model.title,
-                              style: TextStyle(
-                                color: palette.textPrimary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: badge.background,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                _localizedPriority(entry.model.priority),
+                                style: TextStyle(
+                                  color: badge.foreground,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             Text(
-                              entry.model.message,
+                              _timeAgo(entry.model.timestamp),
                               style: TextStyle(
                                 color: palette.textMuted,
-                                height: 1.5,
+                                fontSize: 12,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 14),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: badge.background,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              entry.model.priority,
-                              style: TextStyle(
-                                color: badge.foreground,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _timeAgo(entry.model.timestamp),
-                            style: TextStyle(
-                              color: palette.textMuted,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: palette.textMuted,
-                        size: 28,
-                      ),
-                    ],
+                        const SizedBox(width: 12),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: palette.textMuted,
+                          size: 28,
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -726,6 +866,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
   }
 
   Widget _rightPanel(_AnnouncementsPalette palette) {
+    final lang = context.watch<LanguageProvider>();
     return _panel(
       palette: palette,
       child: ConstrainedBox(
@@ -760,7 +901,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                   const SizedBox(width: 14),
                   Expanded(
                     child: Text(
-                      'Create Announcement',
+                      lang.getText('createAnnouncement'),
                       style: TextStyle(
                         color: palette.textPrimary,
                         fontSize: 18,
@@ -774,7 +915,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
               Container(height: 1, color: palette.border),
               const SizedBox(height: 24),
               Text(
-                'Title',
+                lang.getText('title'),
                 style: TextStyle(
                   color: palette.textPrimary,
                   fontWeight: FontWeight.w700,
@@ -784,14 +925,14 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
               _inputField(
                 controller: _titleController,
                 palette: palette,
-                hint: 'Enter title...',
+                hint: lang.getText('enterTitle'),
                 maxLines: 1,
               ),
               const SizedBox(height: 18),
               Row(
                 children: [
                   Text(
-                    'Message',
+                    lang.getText('message'),
                     style: TextStyle(
                       color: palette.textPrimary,
                       fontWeight: FontWeight.w700,
@@ -808,14 +949,14 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
               _inputField(
                 controller: _messageController,
                 palette: palette,
-                hint: 'Write your message...',
+                hint: lang.getText('writeYourMessage'),
                 maxLines: 5,
                 maxLength: 400,
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 18),
               Text(
-                'Priority',
+                lang.getText('priority'),
                 style: TextStyle(
                   color: palette.textPrimary,
                   fontWeight: FontWeight.w700,
@@ -842,7 +983,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
               ),
               const SizedBox(height: 18),
               Text(
-                'Schedule (optional)',
+                lang.getText('scheduleOptional'),
                 style: TextStyle(
                   color: palette.textPrimary,
                   fontWeight: FontWeight.w700,
@@ -865,14 +1006,14 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                     iconEnabledColor: palette.textMuted,
                     style: TextStyle(color: palette.textPrimary),
                     isExpanded: true,
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: _ScheduleMode.now,
-                        child: Text('Send immediately'),
+                        child: Text(lang.getText('sendImmediately')),
                       ),
                       DropdownMenuItem(
                         value: _ScheduleMode.later,
-                        child: Text('Schedule for later'),
+                        child: Text(lang.getText('scheduleForLater')),
                       ),
                     ],
                     onChanged: (value) {
@@ -890,7 +1031,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                 child: ElevatedButton.icon(
                   onPressed: _sendAnnouncement,
                   icon: const Icon(Icons.send_rounded),
-                  label: const Text('Send Announcement'),
+                  label: Text(lang.getText('sendAnnouncement')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: palette.primary,
                     foregroundColor: Colors.white,
@@ -1071,7 +1212,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
           ),
           child: Center(
             child: Text(
-              priority.label,
+              _localizedPriority(priority.label),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(

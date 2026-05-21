@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 import '../localization/app_strings.dart';
 
-class LanguageProvider extends ChangeNotifier{
+class LanguageProvider extends ChangeNotifier {
+  String currentLanguage = 'ar';
 
-String currentLanguage="en";
+  void setLanguage(String languageCode) {
+    if (languageCode != 'ar' && languageCode != 'en') return;
+    if (currentLanguage == languageCode) return;
+    currentLanguage = languageCode;
+    notifyListeners();
+  }
 
-void toggleLanguage(){
+  void toggleLanguage() {
+    setLanguage(currentLanguage == 'en' ? 'ar' : 'en');
+  }
 
-currentLanguage=
-currentLanguage=="en"?"ar":"en";
+  String getText(String key) {
+    return AppStrings.text[currentLanguage]?[key] ??
+        AppStrings.text['en']?[key] ??
+        key;
+  }
 
-notifyListeners();
-
-}
-
-String getText(String key){
-
-return AppStrings.text[currentLanguage]![key]??key;
-
-}
-
-bool get isArabic=>currentLanguage=="ar";
-
+  bool get isArabic => currentLanguage == 'ar';
 }

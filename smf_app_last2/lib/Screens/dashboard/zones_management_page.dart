@@ -1,10 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/role_summary.dart';
 import '../../models/zone_summary.dart';
+import '../../providers/language_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/roles_service.dart';
 import '../../services/zones_service.dart';
+
+String _localizedZoneRoleName(String value, LanguageProvider lang) {
+  switch (value.trim().toUpperCase()) {
+    case 'ADMIN':
+      return lang.getText('roleAdmin');
+    case 'ENGINEER':
+      return lang.getText('roleEngineer');
+    case 'MANAGER':
+      return lang.getText('roleManager');
+    case 'WORKER':
+      return lang.getText('roleWorker');
+    case 'ROLE_USER':
+      return lang.getText('roleUser');
+    default:
+      return value;
+  }
+}
 
 class ZonesManagementPage extends StatefulWidget {
   const ZonesManagementPage({super.key});
@@ -22,6 +41,14 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
   List<ZoneSummary> _zones = const [];
   List<RoleSummary> _roles = const [];
 
+  String _localizedZoneName(String value, LanguageProvider lang) {
+    final lower = value.toLowerCase();
+    if (lower.contains('zone a')) return lang.getText('zoneAEngineeringOnly');
+    if (lower.contains('zone b')) return lang.getText('zoneBEngineeringManager');
+    if (lower.contains('zone c')) return lang.getText('zoneCOpenAccess');
+    return value;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +56,7 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
   }
 
   Future<void> _loadZones() async {
+    final lang = context.read<LanguageProvider>();
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -54,16 +82,17 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Failed to load zones.';
+        _errorMessage = lang.getText('failedToLoadZones');
         _isLoading = false;
       });
     }
   }
 
   Future<void> _editZone(ZoneSummary zone) async {
+    final lang = context.read<LanguageProvider>();
     final name = await _showZoneNameDialog(
       context,
-      title: 'Update Zone',
+      title: lang.getText('edit'),
       initialValue: zone.name,
     );
     if (name == null) return;
@@ -71,19 +100,25 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
   }
 
   Future<void> _deleteZone(ZoneSummary zone) async {
+    final lang = context.read<LanguageProvider>();
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Delete zone?'),
-            content: Text('This will delete ${zone.name}.'),
+            title: Text(lang.getText('deleteZoneQuestion')),
+            content: Text(
+              lang.getText('willDeleteItem').replaceAll(
+                    '{name}',
+                    _localizedZoneName(zone.name, lang),
+                  ),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text(lang.getText('cancel')),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete'),
+                child: Text(lang.getText('delete')),
               ),
             ],
           ),
@@ -94,7 +129,12 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
   }
 
   Future<void> _assignRole(ZoneSummary zone) async {
-    final role = await _pickRole(context, roles: _roles, title: 'Assign Role');
+    final lang = context.read<LanguageProvider>();
+    final role = await _pickRole(
+      context,
+      roles: _roles,
+      title: lang.getText('assignRole'),
+    );
     if (role == null) return;
     await _runMutation(
       () => _zonesService.assignRoleToZone(zoneId: zone.id, roleId: role.id),
@@ -102,7 +142,12 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
   }
 
   Future<void> _removeRole(ZoneSummary zone) async {
-    final role = await _pickRole(context, roles: _roles, title: 'Remove Role');
+    final lang = context.read<LanguageProvider>();
+    final role = await _pickRole(
+      context,
+      roles: _roles,
+      title: lang.getText('removeRole'),
+    );
     if (role == null) return;
     await _runMutation(
       () => _zonesService.removeRoleFromZone(zoneId: zone.id, roleId: role.id),
@@ -113,8 +158,9 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
     try {
       await task();
       if (!mounted) return;
+      final lang = context.read<LanguageProvider>();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Zone saved successfully.')),
+        SnackBar(content: Text(lang.getText('zoneSaved'))),
       );
       await _loadZones();
     } on ApiException catch (error) {
@@ -127,6 +173,7 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF020B1F) : const Color(0xFFF6FAFF);
     final bgEnd = isDark ? const Color(0xFF03142D) : const Color(0xFFEEF6FF);
@@ -200,7 +247,7 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
                           const SizedBox(width: 16),
                           Expanded(
                             child: Text(
-                              'Zones',
+                              lang.getText('zones'),
                               style: TextStyle(
                                 color: text,
                                 fontSize: 30,
@@ -212,7 +259,7 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Design secure areas, define operational boundaries, and plan access-control visibility.',
+                        lang.getText('zonesSubtitle'),
                         style: TextStyle(color: muted, height: 1.5),
                       ),
                       const SizedBox(height: 14),
@@ -223,7 +270,7 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
                           OutlinedButton.icon(
                             onPressed: _isLoading ? null : _loadZones,
                             icon: const Icon(Icons.refresh_rounded),
-                            label: const Text('Refresh'),
+                            label: Text(lang.getText('refresh')),
                           ),
                         ],
                       ),
@@ -238,7 +285,7 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
 
               if (_errorMessage != null || _zones.isEmpty) {
                 return _StateCard(
-                  message: _errorMessage ?? 'No monitored zones available yet.',
+                  message: _errorMessage ?? lang.getText('noMonitoredZones'),
                   text: text,
                   muted: muted,
                   onRetry: _loadZones,
@@ -278,7 +325,7 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            zone.name,
+                            _localizedZoneName(zone.name, lang),
                             style: TextStyle(
                               color: text,
                               fontWeight: FontWeight.w700,
@@ -289,7 +336,7 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
                       ],
                     ),
                     Text(
-                      'Monitored access area',
+                      lang.getText('monitoredAccessArea'),
                       style: TextStyle(color: muted, height: 1.45),
                     ),
                     Container(
@@ -300,7 +347,11 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        '$severity Security',
+                        severity == 'High'
+                            ? lang.getText('highPriority')
+                            : severity == 'Medium'
+                                ? lang.getText('mediumPriority')
+                                : lang.getText('lowSecurity'),
                         style: TextStyle(
                           color: accent,
                           fontWeight: FontWeight.w700,
@@ -314,24 +365,24 @@ class _ZonesManagementPageState extends State<ZonesManagementPage> {
                         OutlinedButton.icon(
                           onPressed: () => _editZone(zone),
                           icon: const Icon(Icons.edit_rounded, size: 18),
-                          label: const Text('Edit'),
+                          label: Text(lang.getText('edit')),
                         ),
                         OutlinedButton.icon(
                           onPressed: () => _assignRole(zone),
                           icon: const Icon(Icons.group_add_outlined, size: 18),
-                          label: const Text('Assign Role'),
+                          label: Text(lang.getText('assignRole')),
                         ),
                         OutlinedButton.icon(
                           onPressed: () => _removeRole(zone),
                           icon:
                               const Icon(Icons.group_remove_outlined, size: 18),
-                          label: const Text('Remove Role'),
+                          label: Text(lang.getText('removeRole')),
                         ),
                         OutlinedButton.icon(
                           onPressed: () => _deleteZone(zone),
                           icon: const Icon(Icons.delete_outline_rounded,
                               size: 18),
-                          label: const Text('Delete'),
+                          label: Text(lang.getText('delete')),
                         ),
                       ],
                     ),
@@ -368,6 +419,7 @@ class _StateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lang = context.watch<LanguageProvider>();
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -383,7 +435,7 @@ class _StateCard extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh_rounded),
-            label: const Text('Retry'),
+            label: Text(lang.getText('retry')),
           ),
         ],
       ),
@@ -396,6 +448,7 @@ Future<String?> _showZoneNameDialog(
   required String title,
   String? initialValue,
 }) async {
+  final lang = context.read<LanguageProvider>();
   final controller = TextEditingController(text: initialValue ?? '');
   final formKey = GlobalKey<FormState>();
 
@@ -407,19 +460,19 @@ Future<String?> _showZoneNameDialog(
         key: formKey,
         child: TextFormField(
           controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Zone name',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: lang.getText('zones'),
+            border: const OutlineInputBorder(),
           ),
           validator: (value) => value == null || value.trim().isEmpty
-              ? 'Zone is required.'
+              ? lang.getText('zones')
               : null,
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(lang.getText('cancel')),
         ),
         FilledButton(
           onPressed: () {
@@ -427,7 +480,7 @@ Future<String?> _showZoneNameDialog(
               Navigator.pop(context, controller.text.trim());
             }
           },
-          child: const Text('Save'),
+          child: Text(lang.getText('save')),
         ),
       ],
     ),
@@ -442,9 +495,10 @@ Future<RoleSummary?> _pickRole(
   required List<RoleSummary> roles,
   required String title,
 }) async {
+  final lang = context.read<LanguageProvider>();
   if (roles.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No roles available.')),
+      SnackBar(content: Text(lang.getText('noRolesAvailable'))),
     );
     return null;
   }
@@ -457,15 +511,15 @@ Future<RoleSummary?> _pickRole(
         title: Text(title),
         content: DropdownButtonFormField<RoleSummary>(
           initialValue: selected,
-          decoration: const InputDecoration(
-            labelText: 'Role',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: lang.getText('role'),
+            border: const OutlineInputBorder(),
           ),
           items: roles
               .map(
                 (role) => DropdownMenuItem<RoleSummary>(
                   value: role,
-                  child: Text(role.roleName),
+                  child: Text(_localizedZoneRoleName(role.roleName, lang)),
                 ),
               )
               .toList(),
@@ -478,11 +532,11 @@ Future<RoleSummary?> _pickRole(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(lang.getText('cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, selected),
-            child: const Text('Apply'),
+            child: Text(lang.getText('apply')),
           ),
         ],
       ),

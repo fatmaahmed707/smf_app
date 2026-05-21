@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../theme/app_theme.dart';
 import '../../providers/language_provider.dart';
+import '../../utils/navigation_helper.dart';
 import '../../services/auth_service.dart';
 import '../../services/users_service.dart';
 
@@ -19,6 +21,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
 
   // ── Basic Details ────────────────────────────────────────────────────────
   final _fullNameCtrl = TextEditingController(text: "Admin User");
+  static const _profileDisplayNameKey = 'profile_display_name';
   final _nationalIdCtrl = TextEditingController(text: "Session account");
   final _dobCtrl = TextEditingController(text: "");
   final _phoneCtrl = TextEditingController(text: "");
@@ -33,6 +36,12 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
   }
 
   Future<void> _loadCurrentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedName = prefs.getString(_profileDisplayNameKey)?.trim();
+    if (savedName != null && savedName.isNotEmpty) {
+      _fullNameCtrl.text = savedName;
+    }
+
     final userId = AuthService.instance.userId;
     if (userId == null || userId.isEmpty) return;
 
@@ -40,13 +49,16 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
       final user = await _usersService.getUser(userId);
       if (!mounted) return;
       setState(() {
-        _fullNameCtrl.text =
-            user.name.trim().isEmpty ? 'Admin User' : user.name;
+        if (savedName == null || savedName.isEmpty) {
+          _fullNameCtrl.text =
+              user.name.trim().isEmpty ? 'Admin User' : user.name;
+        }
         _emailCtrl.text =
             user.email.trim().isEmpty ? 'admin@smf.com' : user.email;
         _phoneCtrl.text = user.phone ?? '';
-        _nationalIdCtrl.text =
-            user.id.trim().isEmpty ? 'Session account' : 'Account linked';
+        _nationalIdCtrl.text = user.id.trim().isEmpty
+            ? context.read<LanguageProvider>().getText('sessionAccount')
+            : context.read<LanguageProvider>().getText('accountLinked');
       });
     } catch (_) {}
   }
@@ -61,12 +73,19 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
     super.dispose();
   }
 
-  void _toggleEdit() {
+  Future<void> _toggleEdit() async {
     setState(() => _isEditing = !_isEditing);
     if (!_isEditing) {
+      final lang = context.read<LanguageProvider>();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _profileDisplayNameKey,
+        _fullNameCtrl.text.trim(),
+      );
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text("Personal information saved successfully ✓"),
+                    content: Text(lang.getText('personalInformationSaved')),
           backgroundColor: Colors.green.shade700,
           behavior: SnackBarBehavior.floating,
           shape:
@@ -86,9 +105,14 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
     final borderColor =
         isDark ? Colors.white.withOpacity(0.07) : Colors.grey.withOpacity(0.15);
 
-    return Directionality(
-      textDirection: lang.isArabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
+    return WillPopScope(
+      onWillPop: () => AppNavigation.handleSystemBack(
+        context,
+        fallbackRoute: '/profile',
+      ),
+      child: Directionality(
+        textDirection: lang.isArabic ? TextDirection.rtl : TextDirection.ltr,
+        child: Scaffold(
         backgroundColor: bgColor,
         appBar: AppBar(
           backgroundColor: isDark ? const Color(0xFF0A1628) : Colors.white,
@@ -96,10 +120,13 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
           leading: IconButton(
             icon: Icon(Icons.arrow_back,
                 color: isDark ? Colors.white : Colors.black87),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => AppNavigation.goBack(
+              context,
+              fallbackRoute: '/profile',
+            ),
           ),
           title: Text(
-            lang.isArabic ? "المعلومات الشخصية" : "Personal Information",
+            lang.getText('personalInfo'),
             style: TextStyle(
               color: isDark ? Colors.white : Colors.black87,
               fontWeight: FontWeight.bold,
@@ -118,8 +145,8 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
                 ),
                 label: Text(
                   _isEditing
-                      ? (lang.isArabic ? "حفظ" : "Save")
-                      : (lang.isArabic ? "تعديل" : "Edit"),
+                      ? (lang.getText('save'))
+                      : (lang.getText('edit')),
                   style: TextStyle(
                     color: _isEditing ? Colors.green : Colors.blueAccent,
                     fontWeight: FontWeight.w600,
@@ -138,31 +165,31 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
               _sectionHeader(
                 isDark,
                 icon: Icons.person_outline,
-                label: lang.isArabic ? "البيانات الأساسية" : "Basic Details",
+                label: lang.getText('basicDetails'),
               ),
               const SizedBox(height: 12),
               _card(cardColor, borderColor, [
                 _field(isDark,
-                    label: lang.isArabic ? "الاسم الكامل" : "Full Name",
+                    label: lang.getText('fullName'),
                     ctrl: _fullNameCtrl,
                     icon: Icons.badge_outlined),
                 _field(isDark,
-                    label: lang.isArabic ? "رقم الهوية الوطنية" : "National ID",
+                    label: lang.getText('nationalId'),
                     ctrl: _nationalIdCtrl,
                     icon: Icons.credit_card_outlined),
                 _field(isDark,
-                    label: lang.isArabic ? "تاريخ الميلاد" : "Date of Birth",
+                    label: lang.getText('dateOfBirth'),
                     ctrl: _dobCtrl,
                     icon: Icons.calendar_today_outlined,
                     type: TextInputType.datetime),
-                _genderRow(isDark, label: lang.isArabic ? "الجنس" : "Gender"),
+                _genderRow(isDark, label: lang.getText('gender')),
                 _field(isDark,
-                    label: lang.isArabic ? "رقم الهاتف" : "Phone Number",
+                    label: lang.getText('phoneNumber'),
                     ctrl: _phoneCtrl,
                     icon: Icons.phone_outlined,
                     type: TextInputType.phone),
                 _field(isDark,
-                    label: lang.isArabic ? "البريد الإلكتروني" : "Email",
+                    label: lang.getText('emailLabel'),
                     ctrl: _emailCtrl,
                     icon: Icons.email_outlined,
                     type: TextInputType.emailAddress),
@@ -183,7 +210,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
                     onPressed: _toggleEdit,
                     icon: const Icon(Icons.check, color: Colors.white),
                     label: Text(
-                      lang.isArabic ? "حفظ التغييرات" : "Save Changes",
+                      lang.getText('saveChanges'),
                       style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -195,6 +222,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
               const SizedBox(height: 40),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -344,3 +372,4 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
     );
   }
 }
+

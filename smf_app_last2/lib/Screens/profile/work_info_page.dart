@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../theme/app_theme.dart';
 import '../../providers/language_provider.dart';
+import '../../utils/navigation_helper.dart';
 
 class WorkInfoPage extends StatefulWidget {
   const WorkInfoPage({super.key});
@@ -74,9 +75,14 @@ class _WorkInfoPageState extends State<WorkInfoPage> {
     final borderColor =
         isDark ? Colors.white.withOpacity(0.07) : Colors.grey.withOpacity(0.15);
 
-    return Directionality(
-      textDirection: lang.isArabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
+    return WillPopScope(
+      onWillPop: () => AppNavigation.handleSystemBack(
+        context,
+        fallbackRoute: '/profile',
+      ),
+      child: Directionality(
+        textDirection: lang.isArabic ? TextDirection.rtl : TextDirection.ltr,
+        child: Scaffold(
         backgroundColor: bgColor,
         appBar: AppBar(
           backgroundColor: isDark ? const Color(0xFF0A1628) : Colors.white,
@@ -84,7 +90,10 @@ class _WorkInfoPageState extends State<WorkInfoPage> {
           leading: IconButton(
             icon: Icon(Icons.arrow_back,
                 color: isDark ? Colors.white : Colors.black87),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => AppNavigation.goBack(
+              context,
+              fallbackRoute: '/profile',
+            ),
           ),
           title: Text(
             lang.isArabic ? "معلومات العمل" : "Work Information",
@@ -251,6 +260,7 @@ class _WorkInfoPageState extends State<WorkInfoPage> {
               const SizedBox(height: 40),
             ],
           ),
+        ),
         ),
       ),
     );

@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/map_zone_mapper.dart';
 import '../../models/device_record.dart';
@@ -11,6 +13,7 @@ import '../../models/smf_device.dart';
 import '../../models/user.dart';
 import '../../models/zone_layout_slot.dart';
 import '../../models/zone_summary.dart';
+import '../../providers/language_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/devices_service.dart';
 import '../../services/events_service.dart';
@@ -21,6 +24,61 @@ import '../../widgets/campus_map_canvas.dart';
 import '../../widgets/worker_marker_chip.dart';
 import '../../widgets/zone_details_panel.dart';
 
+String _mapText(BuildContext context, String key) =>
+    context.watch<LanguageProvider>().getText(key);
+
+String _mapZoneName(BuildContext context, String value) {
+  final lower = value.toLowerCase();
+  final lang = context.watch<LanguageProvider>();
+  if (lower.contains('zone a')) return lang.getText('zoneAEngineeringOnly');
+  if (lower.contains('zone b')) return lang.getText('zoneBEngineeringManager');
+  if (lower.contains('zone c')) return lang.getText('zoneCOpenAccess');
+  return value;
+}
+
+String _mapArea(BuildContext context, String value) {
+  final lower = value.toLowerCase();
+  final lang = context.watch<LanguageProvider>();
+  if (lower.contains('production')) return lang.getText('productionArea');
+  if (lower.contains('assembly')) return lang.getText('assemblyArea');
+  if (lower.contains('maintenance')) return lang.getText('maintenanceArea');
+  return value;
+}
+
+String _mapStatus(BuildContext context, String value) {
+  final lang = context.watch<LanguageProvider>();
+  switch (value.toUpperCase()) {
+    case 'SAFE':
+      return lang.getText('safe');
+    case 'WARNING':
+      return lang.getText('warning');
+    case 'EMERGENCY':
+      return lang.getText('emergency');
+    case 'OFFLINE':
+      return lang.getText('offline');
+    default:
+      return value;
+  }
+}
+
+String _mapRoleName(BuildContext context, String value) {
+  final lang = context.watch<LanguageProvider>();
+  switch (value.trim().toUpperCase()) {
+    case 'ADMIN':
+      return lang.getText('roleAdmin');
+    case 'ENGINEER':
+      return lang.getText('roleEngineer');
+    case 'MANAGER':
+      return lang.getText('roleManager');
+    case 'WORKER':
+      return lang.getText('roleWorker');
+    case 'ROLE_USER':
+      return lang.getText('roleUser');
+    default:
+      return value;
+  }
+}
+
 class MapOverviewPage extends StatefulWidget {
   const MapOverviewPage({super.key});
 
@@ -29,6 +87,7 @@ class MapOverviewPage extends StatefulWidget {
 }
 
 class _MapOverviewPageState extends State<MapOverviewPage> {
+  static const _profileDisplayNameKey = 'profile_display_name';
   final ZonesService _zonesService = ZonesService();
   final UsersService _usersService = UsersService();
   final DevicesService _devicesService = DevicesService();
@@ -38,6 +97,7 @@ class _MapOverviewPageState extends State<MapOverviewPage> {
 
   bool _isLoading = true;
   String? _errorMessage;
+  String? _profileDisplayName;
 
   List<User> _users = const [];
   List<DeviceRecord> _devices = const [];
@@ -51,10 +111,18 @@ class _MapOverviewPageState extends State<MapOverviewPage> {
   @override
   void initState() {
     super.initState();
+    _loadProfileDisplayName();
     _loadData();
   }
 
+  Future<void> _loadProfileDisplayName() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _profileDisplayName = prefs.getString(_profileDisplayNameKey));
+  }
+
   Future<void> _loadData() async {
+    final lang = context.read<LanguageProvider>();
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -72,7 +140,7 @@ class _MapOverviewPageState extends State<MapOverviewPage> {
     } on ApiException catch (e) {
       error = e.message;
     } catch (_) {
-      error = 'Failed to load zones.';
+      error = lang.getText('failedToLoadZones');
     }
 
     try {
@@ -272,6 +340,7 @@ class _MapOverviewPageState extends State<MapOverviewPage> {
           zone: zone,
           worker: worker,
           workers: _workersForSingleZone(zone),
+          profileDisplayName: _profileDisplayName,
           onPickWorker: (item) {
             Navigator.pop(context);
             setState(() => _selectedWorkerId = item.id);
@@ -392,40 +461,42 @@ class _MapOverviewPageState extends State<MapOverviewPage> {
     final devicesOnline = _devices
         .where((device) => device.status.toUpperCase() != 'OFFLINE')
         .length;
+    final lang = context.watch<LanguageProvider>();
 
     final cards = [
       _MetricCardData(
-        title: 'TOTAL WORKERS',
+        title: lang.getText('totalWorkers'),
         value: '$totalWorkers',
-        secondary: 'Online ${_users.length}',
+        secondary: '${lang.getText('online')} ${_users.length}',
         accent: palette.accentBlue,
         icon: Icons.groups_2_outlined,
       ),
       _MetricCardData(
-        title: 'SAFE',
+        title: lang.getText('safe'),
         value: '$safe',
         secondary: _percentLabel(safe, totalWorkers),
         accent: palette.metricSafe,
         icon: Icons.shield_outlined,
       ),
       _MetricCardData(
-        title: 'WARNING',
+        title: lang.getText('warning'),
         value: '$warning',
         secondary: _percentLabel(warning, totalWorkers),
         accent: palette.metricWarning,
         icon: Icons.warning_amber_rounded,
       ),
       _MetricCardData(
-        title: 'EMERGENCY',
+        title: lang.getText('emergency'),
         value: '$emergency',
         secondary: _percentLabel(emergency, totalWorkers),
         accent: palette.metricEmergency,
         icon: Icons.notification_important_outlined,
       ),
       _MetricCardData(
-        title: 'DEVICES',
+        title: lang.getText('devices'),
         value: '${_devices.length}',
-        secondary: 'Registry ${_smfDevices.length} / Online $devicesOnline',
+        secondary:
+            '${lang.getText('registry')} ${_smfDevices.length} / ${lang.getText('online')} $devicesOnline',
         accent: const Color(0xFF7C3AED),
         icon: Icons.desktop_windows_outlined,
       ),
@@ -453,7 +524,7 @@ class _MapOverviewPageState extends State<MapOverviewPage> {
   }) {
     if (selectedZone == null) {
       return _MapErrorState(
-        message: 'No monitored zones available yet.',
+        message: _mapText(context, 'noMonitoredZones'),
         palette: palette,
         onRetry: _loadData,
       );
@@ -487,6 +558,7 @@ class _MapOverviewPageState extends State<MapOverviewPage> {
             zone: selectedZone,
             worker: selectedWorker,
             workers: workers,
+            profileDisplayName: _profileDisplayName,
             onPickWorker: (worker) {
               setState(() => _selectedWorkerId = worker.id);
             },
@@ -586,7 +658,7 @@ class _SingleZoneBuildingMonitor extends StatelessWidget {
             final isCompact = constraints.maxWidth < 720;
             final displayWorkers = workers.isNotEmpty
                 ? workers.take(isCompact ? 4 : 6).toList()
-                : _fallbackWorkers(zone);
+                : _fallbackWorkers(context, zone);
             final selectedZoneIndex = math.max(
               0,
               zones.indexWhere((item) => item.id == zone.id),
@@ -723,15 +795,19 @@ class _SingleZoneBuildingMonitor extends StatelessWidget {
     );
   }
 
-  List<MapWorkerMarker> _fallbackWorkers(MapZoneViewModel zone) {
+  List<MapWorkerMarker> _fallbackWorkers(
+    BuildContext context,
+    MapZoneViewModel zone,
+  ) {
+    final lang = context.read<LanguageProvider>();
     return List.generate(5, (index) {
       return MapWorkerMarker(
         id: 'preview-worker-$index',
-        name: 'Worker ${index + 1}',
+        name: '${lang.getText('workers')} ${index + 1}',
         status: 'safe',
-        role: 'Operator',
+        role: lang.getText('operator'),
         locationLabel: zone.name,
-        deviceLabel: 'Wearable ${index + 1}',
+        deviceLabel: '${lang.getText('wearableTracker')} ${index + 1}',
         offsetDx: 0,
         offsetDy: 0,
       );
@@ -777,7 +853,9 @@ class _BuildingInfoCallout extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  zone.name.isEmpty ? 'BUILDING A' : zone.name.toUpperCase(),
+                  zone.name.isEmpty
+                      ? _mapText(context, 'zoneAEngineeringOnly')
+                      : _mapZoneName(context, zone.name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -788,7 +866,9 @@ class _BuildingInfoCallout extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  zone.area.isEmpty ? 'Production Area' : zone.area,
+                  zone.area.isEmpty
+                      ? _mapText(context, 'productionArea')
+                      : _mapArea(context, zone.area),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -805,7 +885,7 @@ class _BuildingInfoCallout extends StatelessWidget {
                         color: palette.accentBlue, size: 22),
                     const SizedBox(width: 10),
                     Text(
-                      '$workersCount Workers',
+                      '$workersCount ${_mapText(context, 'workers')}',
                       style: TextStyle(
                         color: palette.textPrimary,
                         fontSize: 16,
@@ -860,7 +940,7 @@ class _BuildingStatusCallout extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Text(
-            safe ? 'STATUS\nSAFE' : 'STATUS\n${zone.status.toUpperCase()}',
+            '${_mapText(context, 'status')}\n${_mapStatus(context, safe ? 'SAFE' : zone.status)}',
             style: TextStyle(
               color: color,
               height: 1.15,
@@ -1219,9 +1299,9 @@ class _SingleZoneLegend extends StatelessWidget {
         runSpacing: 8,
         alignment: WrapAlignment.center,
         children: [
-          _legendItem('Safe', safe, palette.metricSafe),
-          _legendItem('Warning', warning, palette.metricWarning),
-          _legendItem('Emergency', emergency, palette.metricEmergency),
+          _legendItem(_mapText(context, 'safe'), safe, palette.metricSafe),
+          _legendItem(_mapText(context, 'warning'), warning, palette.metricWarning),
+          _legendItem(_mapText(context, 'emergency'), emergency, palette.metricEmergency),
           _legendItem('Offline', offline, palette.metricOffline),
         ],
       ),
@@ -1291,7 +1371,7 @@ class _MapErrorState extends StatelessWidget {
             const SizedBox(height: 14),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('Retry'),
+              child: Text(_mapText(context, 'retry')),
             ),
           ],
         ),
@@ -1432,7 +1512,7 @@ class _LiveMonitoringPill extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            'LIVE MONITORING',
+            _mapText(context, 'liveMonitoring'),
             style: TextStyle(
               color: palette.textSecondary,
               fontWeight: FontWeight.w700,
@@ -1469,7 +1549,7 @@ class _CampusOverviewPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SidePanel(
       palette: palette,
-      title: 'ZONE OVERVIEW',
+      title: _mapText(context, 'zoneOverview'),
       child: Column(
         children: [
           ...zones.map(
@@ -1511,7 +1591,7 @@ class _CampusOverviewPanel extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            zone.name,
+                            _mapZoneName(context, zone.name),
                             style: TextStyle(
                               color: palette.textPrimary,
                               fontWeight: FontWeight.w700,
@@ -1519,7 +1599,7 @@ class _CampusOverviewPanel extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            zone.area,
+                            _mapArea(context, zone.area),
                             style: TextStyle(
                               color: palette.textMuted,
                               fontSize: 12.5,
@@ -1591,7 +1671,7 @@ class _RecentEventsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SidePanel(
       palette: palette,
-      title: 'RECENT EVENTS',
+      title: _mapText(context, 'recentEvents'),
       trailing: Text(
         'View All',
         style: TextStyle(
@@ -1604,7 +1684,7 @@ class _RecentEventsPanel extends StatelessWidget {
         children: [
           if (events.isEmpty)
             Text(
-              'No recent events.',
+              _mapText(context, 'noRecentEvents'),
               style: TextStyle(color: palette.textMuted),
             )
           else
@@ -1708,7 +1788,7 @@ class _ActiveWorkersPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SidePanel(
       palette: palette,
-      title: 'ACTIVE WORKERS',
+      title: _mapText(context, 'activeWorkers'),
       trailing: Text(
         '$activeWorkers / $totalWorkers',
         style: TextStyle(
@@ -1730,7 +1810,7 @@ class _ActiveWorkersPanel extends StatelessWidget {
           TextButton(
             onPressed: () {},
             child: Text(
-              'View All Workers',
+              _mapText(context, 'viewAllWorkers'),
               style: TextStyle(
                 color: palette.accentBlue,
                 fontWeight: FontWeight.w700,
@@ -1835,6 +1915,7 @@ class _SelectedWorkerPanel extends StatelessWidget {
   final MapZoneViewModel zone;
   final MapWorkerMarker? worker;
   final List<MapWorkerMarker> workers;
+  final String? profileDisplayName;
   final ValueChanged<MapWorkerMarker> onPickWorker;
 
   const _SelectedWorkerPanel({
@@ -1842,12 +1923,22 @@ class _SelectedWorkerPanel extends StatelessWidget {
     required this.zone,
     required this.worker,
     required this.workers,
+    required this.profileDisplayName,
     required this.onPickWorker,
   });
 
   @override
   Widget build(BuildContext context) {
     final selectedWorker = worker ?? workers.firstOrNull;
+    final savedName = profileDisplayName?.trim();
+    final workerName = selectedWorker?.name.trim();
+    final displayName = savedName != null &&
+            savedName.isNotEmpty &&
+            (workerName == null ||
+                workerName.isEmpty ||
+                workerName.toLowerCase() == 'admin')
+        ? savedName
+        : selectedWorker?.name ?? _mapZoneName(context, zone.name);
 
     return Container(
       width: double.infinity,
@@ -1891,7 +1982,7 @@ class _SelectedWorkerPanel extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      selectedWorker?.name ?? zone.name,
+                      displayName,
                       style: TextStyle(
                         color: palette.textPrimary,
                         fontSize: 18,
@@ -1904,7 +1995,12 @@ class _SelectedWorkerPanel extends StatelessWidget {
                       runSpacing: 6,
                       children: [
                         Text(
-                          selectedWorker?.role ?? zone.area,
+                          selectedWorker?.role == null
+                              ? _mapArea(context, zone.area)
+                              : _mapRoleName(
+                                  context,
+                                  selectedWorker!.role ?? '',
+                                ),
                           style: TextStyle(
                             color: palette.textSecondary,
                             fontWeight: FontWeight.w600,
@@ -1920,7 +2016,7 @@ class _SelectedWorkerPanel extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            zone.status.toUpperCase(),
+                            _mapStatus(context, zone.status),
                             style: TextStyle(
                               color: zone.statusColor,
                               fontWeight: FontWeight.w700,
@@ -1932,7 +2028,7 @@ class _SelectedWorkerPanel extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Current Location',
+                      _mapText(context, 'currentLocation'),
                       style: TextStyle(
                         color: palette.textMuted,
                         fontSize: 12,
@@ -1941,7 +2037,12 @@ class _SelectedWorkerPanel extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      selectedWorker?.locationLabel ?? zone.area,
+                      selectedWorker?.locationLabel?.trim().isNotEmpty == true
+                          ? _mapZoneName(
+                              context,
+                              selectedWorker!.locationLabel!,
+                            )
+                          : _mapArea(context, zone.area),
                       style: TextStyle(
                         color: palette.metricSafe,
                         fontWeight: FontWeight.w700,
@@ -1959,7 +2060,7 @@ class _SelectedWorkerPanel extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Last Event',
+                          _mapText(context, 'lastEvent'),
                           style: TextStyle(
                             color: palette.textMuted,
                             fontSize: 12,
