@@ -1,0 +1,1213 @@
+openapi: 3.1.0
+info:
+  title: SMF (Security Management Framework) API
+  description: |
+    REST API for the Security Management Framework system.
+    Provides endpoints for managing users, roles, zones, devices, and authentication.
+    
+    ## Authentication
+    Most endpoints require authentication via JWT token passed in the Authorization header.
+    Device endpoints require device authentication headers (X-Device-Mac, X-Device-Timestamp, X-Device-Signature).
+    
+    ## SMF Device Registry
+    Factory devices are pre-registered in the SMF device registry with MAC addresses and secrets.
+    Users register devices by selecting from available SMF device labels. Devices authenticate
+    using HMAC-SHA256 signatures computed from their device ID and timestamp.
+    
+    ## Base URL
+    http://localhost:8080
+  version: v1
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/v1/auth/login
+  schemas:
+    ZoneRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Name of the zone
+      required:
+        - name
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Whether the operation was successful
+        message:
+          type: string
+          description: Response message
+        data:
+          type: object
+          description: Response data payload
+        time:
+          type: string
+          format: date-time
+          description: Response timestamp
+    UserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+          description: Unique username
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: User email address
+        password:
+          type: string
+          minLength: 1
+          description: User password
+        roles:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+          description: List of role names to assign
+      required:
+        - email
+        - password
+        - roles
+        - username
+    RoleRequest:
+      type: object
+      properties:
+        roleName:
+          type: string
+          minLength: 1
+          description: Name of the role
+      required:
+        - roleName
+    DeviceRegisterRequest:
+      type: object
+      properties:
+        smfDeviceLabel:
+          type: string
+          minLength: 1
+          description: Human-readable label for the device (matches SmfDevice label)
+        ownerId:
+          type: string
+          minLength: 1
+          description: UUID of the user who owns this device
+        zoneId:
+          type: string
+          format: uuid
+          description: UUID of the zone to assign the device to (optional)
+      required:
+        - ownerId
+        - smfDeviceLabel
+    DeviceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID of the device
+        macAddress:
+          type: string
+          description: MAC address of the device
+        ownerId:
+          type: string
+          format: uuid
+          description: UUID of the device owner
+        zoneId:
+          type: string
+          format: uuid
+          description: UUID of the device's last zone (optional)
+        zoneName:
+          type: string
+          description: Name of the device's last zone (optional)
+        lastSeenTimestamp:
+          type: string
+          format: date-time
+          description: Last time the device was seen
+        status:
+          type: string
+          enum:
+            - ONLINE
+            - OFFLINE
+            - SOS
+          description: Current status of the device
+        violationCount:
+          type: integer
+          description: Number of violations recorded
+    SmfDeviceRequest:
+      type: object
+      properties:
+        macAddress:
+          type: string
+          minLength: 1
+          description: MAC address of the SMF device (e.g., "00:1A:2B:3C:4D:5E")
+        label:
+          type: string
+          minLength: 1
+          description: Human-readable label for the device (used when registering)
+        secret:
+          type: string
+          minLength: 1
+          description: Secret key for HMAC authentication (will be encrypted)
+      required:
+        - macAddress
+        - label
+        - secret
+    SmfDeviceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID of the SMF device
+        macAddress:
+          type: string
+          description: MAC address of the device
+        label:
+          type: string
+          description: Human-readable label
+        isRegistered:
+          type: boolean
+          description: Whether the device has been registered to a user
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the device was added to the registry
+    DeviceEventRequest:
+      type: object
+      properties:
+        macAddress:
+          type: string
+          minLength: 1
+          description: MAC address of the device
+        event:
+          type: string
+          enum:
+            - DEVICE_OFFLINE
+            - DEVICE_ONLINE
+            - SOS_TRIGGERED
+            - ACCESS_DENIED
+            - ACCESS_GRANTED
+            - TESTING
+          description: Type of event triggered by the device
+      required:
+        - event
+        - macAddress
+    ZoneEntryRequest:
+      type: object
+      properties:
+        zoneId:
+          type: string
+          format: uuid
+          description: UUID of the zone being entered
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: User email address for registration
+        username:
+          type: string
+          minLength: 1
+          description: Desired username
+        password:
+          type: string
+          minLength: 1
+          description: Desired password
+      required:
+        - email
+        - password
+        - username
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          description: User email address
+        password:
+          type: string
+          minLength: 1
+          description: User password
+      required:
+        - email
+        - password
+    OAuthRequest:
+      type: object
+      properties:
+        idToken:
+          type: string
+          description: Google ID token
+      required:
+        - idToken
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: Valid refresh token
+      required:
+        - refreshToken
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh token to invalidate
+      required:
+        - refreshToken
+    JwtResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: User ID
+        accessToken:
+          type: string
+          description: New JWT access token
+        refreshToken:
+          type: string
+          description: New refresh token
+paths:
+  /api/v1/zones/{id}:
+    get:
+      tags:
+        - zone-controller
+      operationId: getZoneById
+      summary: Get a zone by ID
+      description: Retrieves a specific zone by its UUID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the zone
+      responses:
+        "200":
+          description: Zone found successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              examples:
+                ZoneResponse:
+                  summary: Example zone response
+                  value:
+                    success: true
+                    message: "Zone retrieved successfully"
+                    data:
+                      id: "550e8400-e29b-41d4-a716-446655440000"
+                      name: "Main Entrance"
+                    time: "2024-01-15T10:30:00Z"
+    put:
+      tags:
+        - zone-controller
+      operationId: updateZone
+      summary: Update an existing zone
+      description: Updates the name of an existing zone
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the zone to update
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ZoneRequest"
+            examples:
+              ZoneUpdateExample:
+                summary: Example zone update request
+                value:
+                  name: "Updated Zone Name"
+        required: true
+      responses:
+        "200":
+          description: Zone updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    delete:
+      tags:
+        - zone-controller
+      operationId: deleteZone
+      summary: Delete a zone
+      description: Deletes a zone by its UUID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the zone to delete
+      responses:
+        "200":
+          description: Zone deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/users/{id}:
+    get:
+      tags:
+        - user-controller
+      operationId: getUser
+      summary: Get a user by ID
+      description: Retrieves a specific user by their UUID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the user
+      responses:
+        "200":
+          description: User found successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    put:
+      tags:
+        - user-controller
+      operationId: updateUser
+      summary: Update an existing user
+      description: Updates user information including email, username, password, and roles
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the user to update
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRequest"
+            examples:
+              UserUpdateExample:
+                summary: Example user update request
+                value:
+                  username: "updateduser"
+                  email: "updated@example.com"
+                  password: "NewPassword123!"
+                  roles: ["USER", "OPERATOR"]
+        required: true
+      responses:
+        "200":
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    delete:
+      tags:
+        - user-controller
+      operationId: deleteUser
+      summary: Delete a user
+      description: Deletes a user by their UUID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the user to delete
+      responses:
+        "200":
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/roles/{id}:
+    get:
+      tags:
+        - role-controller
+      operationId: getRole
+      summary: Get a role by ID
+      description: Retrieves a specific role by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID of the role
+      responses:
+        "200":
+          description: Role found successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    put:
+      tags:
+        - role-controller
+      operationId: updateRole
+      summary: Update an existing role
+      description: Updates the name of an existing role
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID of the role to update
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleRequest"
+            examples:
+              RoleUpdateExample:
+                summary: Example role update request
+                value:
+                  roleName: "SUPER_ADMIN"
+        required: true
+      responses:
+        "200":
+          description: Role updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    delete:
+      tags:
+        - role-controller
+      operationId: deleteRole
+      summary: Delete a role
+      description: Deletes a role by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID of the role to delete
+      responses:
+        "200":
+          description: Role deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/devices/{id}:
+    get:
+      tags:
+        - device-controller
+      operationId: getDeviceById
+      summary: Get a device by ID
+      description: Retrieves a specific device by its UUID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the device
+      responses:
+        "200":
+          description: Device found successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    put:
+      tags:
+        - device-controller
+      operationId: updateDevice
+      summary: Update an existing device
+      description: Updates device information including label, owner, and zone
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the device to update
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceRegisterRequest"
+            examples:
+              DeviceUpdateExample:
+                summary: Example device update request
+                value:
+                  smfDeviceLabel: "Updated Device Label"
+                  ownerId: "550e8400-e29b-41d4-a716-446655440000"
+                  zoneId: "550e8400-e29b-41d4-a716-446655440001"
+        required: true
+      responses:
+        "200":
+          description: Device updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    delete:
+      tags:
+        - device-controller
+      operationId: deleteDevice
+      summary: Delete a device
+      description: Deletes a device by its UUID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the device to delete
+      responses:
+        "200":
+          description: Device deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/zones/{id}/roles/{roleId}:
+    post:
+      tags:
+        - zone-controller
+      operationId: assignRoleToZone
+      summary: Assign a role to a zone
+      description: Associates a role with a specific zone
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the zone
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID of the role to assign
+      responses:
+        "200":
+          description: Role assigned to zone successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    delete:
+      tags:
+        - zone-controller
+      operationId: removeRoleFromZone
+      summary: Remove a role from a zone
+      description: Removes a role association from a specific zone
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the zone
+        - name: roleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID of the role to remove
+      responses:
+        "200":
+          description: Role removed from zone successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/zones/:
+    get:
+      tags:
+        - zone-controller
+      operationId: getZones
+      summary: Get all zones
+      description: Retrieves all zones, optionally filtered by name
+      parameters:
+        - name: name
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional name filter
+      responses:
+        "200":
+          description: Zones retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    post:
+      tags:
+        - zone-controller
+      operationId: createZone
+      summary: Create a new zone
+      description: Creates a new zone with the specified name
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ZoneRequest"
+            examples:
+              ZoneCreateExample:
+                summary: Example zone creation request
+                value:
+                  name: "New Zone"
+        required: true
+      responses:
+        "200":
+          description: Zone created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/users/:
+    get:
+      tags:
+        - user-controller
+      operationId: getAllUsers
+      summary: Get all users
+      description: Retrieves all users in the system
+      responses:
+        "200":
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    post:
+      tags:
+        - user-controller
+      operationId: createUser
+      summary: Create a new user
+      description: Creates a new user with the specified details
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRequest"
+            examples:
+              UserCreateExample:
+                summary: Example user creation request
+                value:
+                  username: "newuser"
+                  email: "newuser@example.com"
+                  password: "Password123!"
+                  roles: ["USER"]
+        required: true
+      responses:
+        "200":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/roles/:
+    get:
+      tags:
+        - role-controller
+      operationId: getAllRoles
+      summary: Get all roles
+      description: Retrieves all roles in the system
+      responses:
+        "200":
+          description: Roles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    post:
+      tags:
+        - role-controller
+      operationId: createRole
+      summary: Create a new role
+      description: Creates a new role with the specified name
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleRequest"
+            examples:
+              RoleCreateExample:
+                summary: Example role creation request
+                value:
+                  roleName: "MANAGER"
+        required: true
+      responses:
+        "200":
+          description: Role created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/events/device:
+    post:
+      tags:
+        - event-controller
+      operationId: event
+      summary: Submit a device event
+      description: Receives events from devices such as status changes, access events, and alerts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceEventRequest"
+            examples:
+              DeviceEventExample:
+                summary: Example device event request
+                value:
+                  macAddress: "00:1A:2B:3C:4D:5E"
+                  event: "DEVICE_ONLINE"
+        required: true
+      responses:
+        "200":
+          description: Event processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/devices/zone-entry:
+    post:
+      tags:
+        - device-controller
+      operationId: handleZoneEntry
+      summary: Record device zone entry
+      description: |
+        Records when a device enters a specific zone.
+        Requires device authentication headers.
+      parameters:
+        - name: X-Device-Mac
+          in: header
+          required: true
+          schema:
+            type: string
+          description: MAC address of the device
+        - name: X-Device-Timestamp
+          in: header
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Epoch timestamp (long)
+        - name: X-Device-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Base64 HMAC-SHA256 signature
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ZoneEntryRequest"
+            examples:
+              ZoneEntryExample:
+                summary: Example zone entry request
+                value:
+                  zoneId: "550e8400-e29b-41d4-a716-446655440000"
+        required: true
+      responses:
+        "200":
+          description: Zone entry recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/devices/:
+    get:
+      tags:
+        - device-controller
+      operationId: getAllDevices_1
+      summary: Get all devices
+      description: Retrieves all registered devices in the system
+      responses:
+        "200":
+          description: Devices retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    post:
+      tags:
+        - device-controller
+      operationId: registerDevice
+      summary: Register a new device
+      description: Registers a new device in the system
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceRegisterRequest"
+            examples:
+              DeviceRegisterExample:
+                summary: Example device registration request
+                value:
+                  smfDeviceLabel: "New Device"
+                  ownerId: "550e8400-e29b-41d4-a716-446655440000"
+                  zoneId: "550e8400-e29b-41d4-a716-446655440001"
+        required: true
+      responses:
+        "200":
+          description: Device registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/auth/register:
+    post:
+      tags:
+        - auth-controller
+      operationId: addUser
+      summary: Register a new user account
+      description: Creates a new user account with email, username, and password
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            examples:
+              RegisterExample:
+                summary: Example registration request
+                value:
+                  email: "newuser@example.com"
+                  username: "newuser"
+                  password: "SecurePassword123!"
+        required: true
+      responses:
+        "200":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/auth/login:
+    post:
+      tags:
+        - auth-controller
+      operationId: login
+      summary: Authenticate user
+      description: Authenticates a user and returns a JWT token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            examples:
+              LoginExample:
+                summary: Example login request
+                value:
+                  email: "john.doe@example.com"
+                  password: "SecurePassword123!"
+        required: true
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              examples:
+                LoginResponseExample:
+                  summary: Example login response
+                  value:
+                    success: true
+                    message: "Login successful"
+                    data:
+                      token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      expiresIn: 3600
+  /api/v1/auth/google:
+    post:
+      tags:
+        - auth-controller
+      operationId: googleSignIn
+      summary: Authenticate with Google
+      description: Authenticates a user using their Google ID token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthRequest"
+        required: true
+      responses:
+        "200":
+          description: Google authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - auth-controller
+      operationId: refreshTokens
+      summary: Refresh access tokens
+      description: Issues new access and refresh tokens using a valid refresh token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+        required: true
+      responses:
+        "200":
+          description: Tokens refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - auth-controller
+      operationId: logout
+      summary: Logout user
+      description: Invalidates the refresh token to logout the user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+        required: true
+      responses:
+        "200":
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/events/client:
+    get:
+      tags:
+        - event-controller
+      operationId: getEvents
+      summary: Get client events
+      description: Retrieves events that have occurred since the specified time
+      parameters:
+        - name: since
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+          description: Filter events that occurred after this timestamp
+      responses:
+        "200":
+          description: Events retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/auth/isUser:
+    get:
+      tags:
+        - dev-only-controller
+      operationId: testUser
+      summary: Check if user is authenticated
+      description: Verifies if the current request has a valid user authentication
+      responses:
+        "200":
+          description: Authentication status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/auth/isAuthenticated:
+    get:
+      tags:
+        - dev-only-controller
+      operationId: testAuth
+      summary: Check if request is authenticated
+      description: Verifies if the current request is authenticated (user or device)
+      responses:
+        "200":
+          description: Authentication status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/auth/isAdmin:
+    get:
+      tags:
+        - dev-only-controller
+      operationId: testAdmin
+      summary: Check if user is admin
+      description: Verifies if the current authenticated user has admin privileges
+      responses:
+        "200":
+          description: Admin status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/smfdevices/:
+    post:
+      tags:
+        - dev-only-controller
+      operationId: addDevice
+      summary: Add device to registry
+      description: |
+        Adds a new SMF device to the factory registry.
+        Only available in dev mode (app.is-dev-mode=true).
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SmfDeviceRequest"
+            examples:
+              SmfDeviceCreateExample:
+                summary: Example SMF device creation
+                value:
+                  macAddress: "00:1A:2B:3C:4D:5E"
+                  label: "Device-001"
+                  secret: "my-secret-key-123"
+        required: true
+      responses:
+        "201":
+          description: Device added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+        "409":
+          description: Device with this MAC already exists
+    get:
+      tags:
+        - smf-device-controller
+      operationId: getAllDevices
+      summary: Get all SMF devices
+      description: Retrieves all SMF devices from the factory registry. Requires ADMIN role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Devices fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/smfdevices/unregistered:
+    get:
+      tags:
+        - smf-device-controller
+      operationId: getUnregisteredSmfDevices
+      summary: Get unregistered SMF devices
+      description: Retrieves all unregistered SMF devices available for user registration. Requires ADMIN role.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Unregistered devices fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/smfdevices/label/{label}:
+    get:
+      tags:
+        - smf-device-controller
+      operationId: getSmfDeviceByLabel
+      summary: Get SMF device by label
+      description: Retrieves a specific SMF device by its label. Requires ADMIN role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: label
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Label of the SMF device
+      responses:
+        "200":
+          description: Device fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+  /api/v1/smfdevices/{id}:
+    get:
+      tags:
+        - smf-device-controller
+      operationId: getDeviceById_1
+      summary: Get SMF device by ID
+      description: Retrieves a specific SMF device by its UUID. Requires ADMIN role.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the SMF device
+      responses:
+        "200":
+          description: Device fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+    delete:
+      tags:
+        - dev-only-controller
+      operationId: removeDevice
+      summary: Remove device from registry
+      description: |
+        Removes an SMF device from the factory registry.
+        Only available in dev mode (app.is-dev-mode=true).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID of the SMF device to remove
+      responses:
+        "204":
+          description: Device removed successfully
